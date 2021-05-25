@@ -29,12 +29,12 @@
   </head>
   <body>
     <%= render "layouts/navbar" %>
-    <div class="container">
+    <div class="container mt-3">
       <% if notice %>
-        <p class="notice"><%= notice %></p>
+        <p class="notice mb-3"><%= notice %></p>
       <% end %>
       <% if alert %>
-        <p class="alert"><%= alert %></p>
+        <p class="alert mb-3"><%= alert %></p>
       <% end %>
 
       <%= yield %>

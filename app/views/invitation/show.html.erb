@@ -1,0 +1,19 @@
+<h1>Invitations</h1>
+
+<table class="table table-striped table-bordered w-50">
+  <thead class="table-light">
+    <tr>
+      <th scope="col">Opponent</th>
+      <th scope="col" colspan="2"></th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @opponents.each do |opponent| %>
+      <tr>
+        <td><%= opponent.email %></td>
+        <td><%= link_to "Accept", "", class: "btn btn-sm btn-success" %></td>
+        <td><%= link_to "Decline", "", class: "btn btn-sm btn-danger" %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

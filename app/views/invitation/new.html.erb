@@ -1,0 +1,9 @@
+<h1>New Invitation</h1>
+
+<%= form_with do |form| %>
+  <div class="mb-3 mt-3">
+    <%= form.label :email, "Opponent Email (This will be modifiable later.)", class: "form-label" %>
+    <%= form.text_field :email, value: @starter_user.email, class: "form-control", readonly: true %>
+  </div>
+  <%= form.submit "Submit", class: "btn btn-primary" %>
+<% end %>
