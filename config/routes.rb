@@ -3,6 +3,8 @@ Rails.application.routes.draw do
   get '/invitation/new/:starter_id', to: 'invitation#new', as: :invitation_new
   get 'invitation/show'
 
+  post '/battle/new', to: 'battle#create'
+  get 'battle/show'
   get 'battle/search'
 
   devise_for :users

@@ -10,23 +10,32 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_05_25_104123) do
+ActiveRecord::Schema.define(version: 2021_05_26_102153) do
 
-  create_table "battle_streams", force: :cascade do |t|
+  create_table "battle_states", force: :cascade do |t|
     t.string "left_hand"
     t.string "right_hand"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
     t.integer "health"
     t.integer "user_id"
-    t.index ["user_id"], name: "index_battle_streams_on_user_id"
+    t.integer "battle_id"
+    t.index ["battle_id"], name: "index_battle_states_on_battle_id"
+    t.index ["user_id"], name: "index_battle_states_on_user_id"
   end
 
   create_table "battles", force: :cascade do |t|
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
+  end
+
+  create_table "battles_users", force: :cascade do |t|
+    t.integer "battle_id"
     t.integer "user_id"
-    t.index ["user_id"], name: "index_battles_on_user_id"
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["battle_id"], name: "index_battles_users_on_battle_id"
+    t.index ["user_id"], name: "index_battles_users_on_user_id"
   end
 
   create_table "invitations", force: :cascade do |t|

@@ -6,6 +6,8 @@ class InvitationController < ApplicationController
       remaining = inv.users.reject { |user| user == current_user }
       remaining.first
     end
+
+    @invitations = current_user.invitations
   end
 
   def new
@@ -19,7 +21,7 @@ class InvitationController < ApplicationController
     starter_user.invitations << invitation
 
     respond_to do |format|
-      format.html { redirect_to root_path, notice: "Button was successfully clicked." }
+      format.html { redirect_to root_path, notice: "Invitation successfully sent." }
     end
   end
 end

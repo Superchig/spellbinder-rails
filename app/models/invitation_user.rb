@@ -1,2 +1,0 @@
-class InvitationUser < ApplicationRecord
-end

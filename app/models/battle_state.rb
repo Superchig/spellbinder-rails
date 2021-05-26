@@ -1,0 +1,2 @@
+class BattleState < ApplicationRecord
+end

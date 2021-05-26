@@ -8,11 +8,16 @@
     </tr>
   </thead>
   <tbody>
-    <% @opponents.each do |opponent| %>
+    <% @invitations.each do |invitation| %>
+      <% opponent = find_first_opponent(invitation) %>
       <tr>
         <td><%= opponent.email %></td>
-        <td><%= link_to "Accept", "", class: "btn btn-sm btn-success" %></td>
-        <td><%= link_to "Decline", "", class: "btn btn-sm btn-danger" %></td>
+        <td>
+          <%= button_to "Accept", {:controller => "battle", :action => "create", :invitation_id => invitation.id}, class: "btn btn-sm btn-success" %>
+        </td>
+        <td>
+          <%= link_to "Decline", "", class: "btn btn-sm btn-danger" %>
+        </td>
       </tr>
     <% end %>
   </tbody>

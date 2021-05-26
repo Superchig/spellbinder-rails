@@ -8,13 +8,11 @@
     </tr>
   </thead>
   <tbody>
-    <% @users.each do |user| %>
-      <% unless current_user == user %>
-        <tr>
-          <td><%= user.email %></td>
-          <td><%= link_to "Challenge To Battle.", "#{invitation_new_path(user.id)}", class: "btn btn-primary btn-sm" %></td>
-        </tr>
-      <% end %>
+    <% @available_users.each do |user| %>
+      <tr>
+        <td><%= user.email %></td>
+        <td><%= link_to "Challenge To Battle.", "#{invitation_new_path(user.id)}", class: "btn btn-primary btn-sm" %></td>
+      </tr>
     <% end %>
   </tbody>
 </table>
