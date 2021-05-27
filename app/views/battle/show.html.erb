@@ -1,1 +1,49 @@
-<h1>Battle: <%= @battle.id %></h1>
+<h1 class="mb-3">Battle</h1>
+
+<h4 class="mb-3">Against: <%= @battle.users.reject { |user| user == current_user }.first.email %></h4>
+
+<%= form_with do |form| %>
+  <table class="table w-75">
+    <thead class="table-light">
+      <tr>
+        <th scope="col">Hand</th>
+        <th scope="col">Gesture</th>
+        <th scope="col">Spell</th>
+        <th scope="col">Target</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          Left
+        </td>
+        <td>
+          <%= form.select :left_sign, ["-", ">", "C", "D", "F", "P", "S", "W"] %>
+        </td>
+        <td>
+          <!-- There are 42 unique spells in total. -->
+          <%= form.select :left_spell, Battle::SPELL_NAMES %>
+        </td>
+        <td>
+          <%= form.select :left_target, @targets %>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          Right
+        </td>
+        <td>
+          <%= form.select :right_sign, ["-", ">", "C", "D", "F", "P", "S", "W"] %>
+        </td>
+        <td>
+          <!-- There are 42 unique spells in total. -->
+          <%= form.select :right_spell, Battle::SPELL_NAMES %>
+        </td>
+        <td>
+          <%= form.select :right_target, @targets %>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <%= form.submit "Submit Turn" %>
+<% end %>
