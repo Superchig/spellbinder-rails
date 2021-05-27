@@ -14,10 +14,10 @@
     <%= render "layouts/navbar" %>
     <div class="container mt-3">
       <% if notice %>
-        <p class="notice mb-3"><%= notice %></p>
+        <div class="notice alert alert-info mb-3"><%= notice %></div>
       <% end %>
       <% if alert %>
-        <p class="alert mb-3"><%= alert %></p>
+        <div class="alert alert-primary mb-3"><%= alert %></div>
       <% end %>
 
       <%= yield %>
