@@ -11,10 +11,12 @@ class BattleController < ApplicationController
   def create
     battle = Battle.create
     invitation = Invitation.find(params[:invitation_id])
-    invitation.users.each do |user|
-      user.battles << battle
-    end
+    battle.users.concat(invitation.users)
     invitation.destroy
+
+    battle.users.each do |user|
+      battle_state = BattleState.create(left_hand: "", right_hand: "", health: 15, user_id: user.id, battle_id: battle.id)
+    end
 
     respond_to do |format|
       format.html { redirect_to battles_path, notice: "Battle successfully created." }
@@ -28,6 +30,8 @@ class BattleController < ApplicationController
     @targets = @battle.users.reject { |user| user == current_user }.map { |user| user.email }
     @targets << "Nobody"
     @targets.prepend("")
+
+    @ordered_states = @battle.battle_states.sort_by { |state| state.user.email }
   end
 
   def correct_user

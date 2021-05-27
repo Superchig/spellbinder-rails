@@ -2,7 +2,33 @@
 
 <h4 class="mb-3">Against: <%= @battle.users.reject { |user| user == current_user }.first.email %></h4>
 
-<div class="w-75">
+<div class="mb-4">
+  <% @ordered_states.each do |battle_state| %>
+    <% user = battle_state.user %>
+
+    <table class="table">
+      <thead class="table-light">
+        <tr>
+          <th scope="col"><span class="<%= class_names({'text-primary': user == current_user}) %>"><%= user.email %></span></th>
+          <th scope="col">Health: <span class='text-danger'><%= battle_state.health %></span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td colspan="2" class="font-monospace">
+            Turn: TBD
+            <br>
+            <span style="white-space: pre;">  LH:</span>
+            <br>
+            <span style="white-space: pre;">  RH:</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  <% end %>
+</div>
+
+<div class="w-75 position-relative start-50 translate-middle-x">
   <%= form_with do |form| %>
     <table class="table">
       <thead class="table-light">

@@ -2,6 +2,12 @@ class Battle < ApplicationRecord
   has_and_belongs_to_many :users
   has_many :battle_states
 
+  before_destroy do |battle|
+    battle.battle_states.each do |battle_state|
+      battle_state.destroy
+    end
+  end
+
   # This is kind of ugly, but it works for now.
   SPELL_NAMES = ['', 'Amnesia', 'Anti-spell', 'Blindness', 'Blindness', 'Cause Heavy Wounds', 'Cause Light Wounds',
                  'Charm Monster', 'Charm Person', 'Clap of Lightning', 'Confusion/Maladroitness', 'Counter Spell',
