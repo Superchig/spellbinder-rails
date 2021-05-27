@@ -1,7 +1,8 @@
 class InvitationController < ApplicationController
   before_action :authenticate_user!
 
-  def show
+  # GET
+  def index
     @opponents = current_user.invitations.map do |inv| 
       remaining = inv.users.reject { |user| user == current_user }
       remaining.first

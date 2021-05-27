@@ -15,11 +15,12 @@ class BattleController < ApplicationController
     invitation.destroy
 
     respond_to do |format|
-      format.html { redirect_to battle_show_path, notice: "Battle successfully created." }
+      format.html { redirect_to battles_path, notice: "Battle successfully created." }
     end
   end
 
   # GET
   def show
+    @battle = Battle.find(params[:battle_id])
   end
 end
