@@ -74,7 +74,9 @@
     </table>
   <% end %>
 
-  <div class="card card-body">
+  <!-- Set the specific width to be 103% in order to align the table within this card with the possible
+       table above it. This is hacky, but it seems to work well enough, for now. -->
+  <div class="card card-body position-relative start-50 translate-middle-x" style="width: 103%;">
     <!-- This is the input form. -->
     <%= form_with(url: battle_orders_path(@battle.id), method: "patch") do |form| %>
       <table class="table">
