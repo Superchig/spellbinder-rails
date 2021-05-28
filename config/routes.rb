@@ -5,6 +5,7 @@ Rails.application.routes.draw do
 
   post '/battle/new', to: 'battle#create'
   get '/battle/show/:battle_id', to: 'battle#show', as: :battle
+  patch '/battle/orders/:battle_id', to: 'battle#update', as: :battle_orders
   get 'battle/search'
   get '/battle', to: 'battle#index', as: :battles
 

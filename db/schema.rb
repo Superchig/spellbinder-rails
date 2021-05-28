@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_05_26_102153) do
+ActiveRecord::Schema.define(version: 2021_05_28_023728) do
 
   create_table "battle_states", force: :cascade do |t|
     t.string "left_hand"
@@ -20,6 +20,13 @@ ActiveRecord::Schema.define(version: 2021_05_26_102153) do
     t.integer "health"
     t.integer "user_id"
     t.integer "battle_id"
+    t.text "orders_left_gesture"
+    t.string "orders_left_spell"
+    t.string "orders_left_target"
+    t.string "orders_right_gesture"
+    t.string "orders_right_spell"
+    t.string "orders_right_target"
+    t.boolean "orders_finished"
     t.index ["battle_id"], name: "index_battle_states_on_battle_id"
     t.index ["user_id"], name: "index_battle_states_on_user_id"
   end

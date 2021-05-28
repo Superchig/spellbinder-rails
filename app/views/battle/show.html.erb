@@ -9,8 +9,8 @@
     <table class="table">
       <thead class="table-light">
         <tr>
-          <th scope="col"><span class="<%= class_names({'text-primary': user == current_user}) %>"><%= user.email %></span></th>
-          <th scope="col">Health: <span class='text-danger'><%= battle_state.health %></span></th>
+          <th scope="col" class="col-sm-4"><span class="<%= class_names({'text-primary': user == current_user}) %>"><%= user.email %></span></th>
+          <th scope="col" class="col-sm-4">Health: <span class='text-danger'><%= battle_state.health %></span></th>
         </tr>
       </thead>
       <tbody>
@@ -29,14 +29,15 @@
 </div>
 
 <div class="w-75 position-relative start-50 translate-middle-x">
-  <%= form_with do |form| %>
-    <table class="table">
+  <% if @current_state.orders_finished %>
+    <!-- This table displays the users previous input, if they had any -->
+    <table class="table mb-4">
       <thead class="table-light">
         <tr>
-          <th scope="col">Hand</th>
-          <th scope="col">Gesture</th>
-          <th scope="col">Spell</th>
-          <th scope="col">Target</th>
+          <th scope="col" class="col-md-1">Hand</th>
+          <th scope="col" class="col-md-1">Gesture</th>
+          <th scope="col" class="col-md-4">Spell</th>
+          <th scope="col" class="col-md-4">Target</th>
         </tr>
       </thead>
       <tbody>
@@ -45,14 +46,13 @@
             Left
           </td>
           <td>
-            <%= form.select :left_sign, ["-", ">", "C", "D", "F", "P", "S", "W"], class: "form-select" %>
+            <%= @current_state.orders_left_gesture %>
           </td>
           <td>
-            <!-- There are 42 unique spells in total. -->
-            <%= form.select :left_spell, Battle::SPELL_NAMES, class: "form-select" %>
+            <%= @current_state.orders_left_spell %>
           </td>
           <td>
-            <%= form.select :left_target, @targets, class: "form-select" %>
+            <%= @current_state.orders_left_target %>
           </td>
         </tr>
         <tr>
@@ -60,18 +60,70 @@
             Right
           </td>
           <td>
-            <%= form.select :right_sign, ["-", ">", "C", "D", "F", "P", "S", "W"], class: "form-select" %>
+            <%= @current_state.orders_right_gesture %>
           </td>
           <td>
             <!-- There are 42 unique spells in total. -->
-            <%= form.select :right_spell, Battle::SPELL_NAMES, class: "form-select" %>
+            <%= @current_state.orders_right_spell %>
           </td>
           <td>
-            <%= form.select :right_target, @targets, class: "form-select" %>
+            <%= @current_state.orders_right_target %>
           </td>
         </tr>
       </tbody>
     </table>
-    <%= form.submit "Submit Turn", class: "float-end btn btn-primary" %>
   <% end %>
+
+  <div class="card card-body">
+    <!-- This is the input form. -->
+    <%= form_with(url: battle_orders_path(@battle.id), method: "patch") do |form| %>
+      <table class="table">
+        <thead class="table-light">
+          <tr>
+            <th scope="col" class="col-md-1">Hand</th>
+            <th scope="col" class="col-md-1">Gesture</th>
+            <th scope="col" class="col-md-4">Spell</th>
+            <th scope="col" class="col-md-4">Target</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              Left
+            </td>
+            <td>
+              <%= form.select :left_gesture, ["-", ">", "C", "D", "F", "P", "S", "W"], class: "form-select" %>
+            </td>
+            <td>
+              <!-- There are 42 unique spells in total. -->
+              <%= form.select :left_spell, Battle::SPELL_NAMES, class: "form-select" %>
+            </td>
+            <td>
+              <%= form.select :left_target, @targets, class: "form-select" %>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Right
+            </td>
+            <td>
+              <%= form.select :right_gesture, ["-", ">", "C", "D", "F", "P", "S", "W"], class: "form-select" %>
+            </td>
+            <td>
+              <!-- There are 42 unique spells in total. -->
+              <%= form.select :right_spell, Battle::SPELL_NAMES, class: "form-select" %>
+            </td>
+            <td>
+              <%= form.select :right_target, @targets, class: "form-select" %>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <% if @current_state.orders_finished %>
+        <%= form.submit "Change Orders", class: "float-end btn btn-warning" %>
+      <% else %>
+        <%= form.submit "Submit Orders", class: "float-end btn btn-primary" %>
+      <% end %>
+    <% end %>
+  </div>
 </div>
