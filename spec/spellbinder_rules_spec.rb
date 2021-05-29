@@ -36,7 +36,8 @@ describe SpellbinderRules do
                                   BattleState.new(left_hand: 'S', right_hand: 'W', health: 14,
                                                   player_name: 'second@example.com')]
 
-        expected_log = [ColoredText.new('red', 'first@example.com stabs second@example.com, dealing 1 damage.')]
+        expected_log = [ColoredText.new('green', 'first@example.com stabs at second@example.com.'),
+                        ColoredText.new('red', 'first@example.com stabs second@example.com for 1 damage.')]
 
         result = SpellbinderRules.calc_next_turn(initial_battle_states)
 
@@ -56,8 +57,34 @@ describe SpellbinderRules do
                                   BattleState.new(left_hand: '--S', right_hand: '--W', health: 13,
                                                   player_name: 'second@example.com')]
 
-        expected_log = [ColoredText.new('red',
-                                        'first@example.com casts Cause Light Wounds on second@example.com, dealing 2 damage.')]
+        expected_log = [ColoredText.new('green',
+                                        'first@example.com casts Cause Light Wounds on second@example.com.'),
+                        ColoredText.new('red', 'Light wounds appear on second@example.com\'s body for 2 damage.')]
+
+        result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+        expect(result[:log]).to eq(expected_log)
+        expect(result[:next_states]).to eq(expected_battle_states)
+      end
+    end
+
+    describe 'The spell "Shield"' do
+      it 'protects the caster from stabs on the turn in which it is cast' do
+        initial_battle_states = [BattleState.new(left_hand: '--', orders_left_gesture: '>',
+                                                 right_hand: '--', orders_right_gesture: '-', player_name: 'first@example.com'),
+                                 BattleState.new(left_hand: '--', orders_left_gesture: 'P',
+                                                 right_hand: '--', orders_right_gesture: '-', player_name: 'second@example.com')]
+
+        expected_battle_states = [BattleState.new(left_hand: '-->', right_hand: '---', health: 15, player_name: 'first@example.com'),
+                                  BattleState.new(left_hand: '--P', right_hand: '---', health: 15,
+                                                  player_name: 'second@example.com')]
+
+        expected_log = [ColoredText.new('green',
+                                        'first@example.com stabs at second@example.com.'),
+                        ColoredText.new('green', 'second@example.com casts Shield on themself.'),
+                        ColoredText.new('light-blue', 'second@example.com is covered in a shimmering shield.'),
+                        ColoredText.new('dark-blue',
+                                        'first@example.com\'s dagger glances off of second@example.com\'s shield.')]
 
         result = SpellbinderRules.calc_next_turn(initial_battle_states)
 

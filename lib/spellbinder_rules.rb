@@ -29,6 +29,18 @@ module SpellbinderRules
     end
   end
 
+  # Holds temporary data for the middle of battle, which won't need to be stored
+  # afterwards
+  class MidBattleState
+    attr_accessor :battle_state, :shielded
+    alias shielded? shielded
+
+    def initialize(battle_state)
+      @battle_state = battle_state
+      @shielded = false
+    end
+  end
+
   class ColoredText
     attr_reader :color, :text
 
@@ -42,35 +54,119 @@ module SpellbinderRules
     end
   end
 
+  class SpellOrder
+    attr_reader :spell, :caster, :target
+
+    def initialize(spell, caster, target = nil)
+      @spell = spell
+      @caster = caster
+      @target = target
+    end
+  end
+
   def self.calc_next_turn(battle_states)
     log = []
     next_states = battle_states.map do |battle_state|
-      BattleState.new(left_hand: battle_state.left_hand + battle_state.orders_left_gesture,
-                      right_hand: battle_state.right_hand + battle_state.orders_right_gesture,
-                      health: battle_state.health, player_name: battle_state.player_name)
+      underlying_state = BattleState.new(left_hand: battle_state.left_hand + battle_state.orders_left_gesture,
+                                         right_hand: battle_state.right_hand + battle_state.orders_right_gesture,
+                                         health: battle_state.health, player_name: battle_state.player_name)
+
+      mid_state = MidBattleState.new(underlying_state)
     end
 
-    next_states.each do |next_state|
-      if next_state.left_hand.end_with?('P') && next_state.right_hand.end_with?('P')
-        next_state.health = -1
+    # Determine which spells are being cast and at whom
+    spells_to_cast = next_states.map do |mid_state|
+      if both_hands_end_with?(mid_state.battle_state, 'P')
+        SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states))
+      elsif either_hand_ends_with?(mid_state.battle_state, '>')
+        SpellOrder.new(:stab, mid_state, find_other_warlock(mid_state, next_states))
+      elsif either_hand_ends_with?(mid_state.battle_state, 'WFP')
+        SpellOrder.new(:cause_light_wounds, mid_state, find_other_warlock(mid_state, next_states))
+      elsif either_hand_ends_with?(mid_state.battle_state, 'P')
+        SpellOrder.new(:shield, mid_state, mid_state)
+      end
+    end.reject { |spell_order| spell_order.nil? }
 
-        log.push(ColoredText.new('red', "#{next_state.player_name} surrenders."))
-      elsif next_state.left_hand.end_with?('>') || next_state.right_hand.end_with?('>')
-        target = self.find_other_warlock(next_state, next_states)
-        target.health -= 1;
+    # Print that these spells are being cast.
+    spells_to_cast.each do |spell_order|
+      mid_state = spell_order.caster
+      target = spell_order.target
 
-        log.push(ColoredText.new('red', "#{next_state.player_name} stabs #{target.player_name}, dealing 1 damage."))
-      elsif next_state.left_hand.end_with?('WFP') || next_state.right_hand.end_with?('WFP')
-        target = self.find_other_warlock(next_state, next_states)
-        target.health -= 2;
-
-        log.push(ColoredText.new('red', "#{next_state.player_name} casts Cause Light Wounds on second@example.com, dealing 2 damage."))
+      case spell_order.spell
+      when :surrender
+        # Nothing happens here
+      when :stab
+        log.push(ColoredText.new('green',
+                                 "#{mid_state.battle_state.player_name} stabs at #{target.battle_state.player_name}."))
+      when :cause_light_wounds
+        log.push(ColoredText.new('green',
+                                 "#{mid_state.battle_state.player_name} casts Cause Light Wounds on #{target.battle_state.player_name}."))
+      when :shield
+        log.push(ColoredText.new('green', "#{mid_state.battle_state.player_name} casts Shield on themself."))
       end
     end
 
-    { log: log, next_states: next_states }
+    # Evaluate shield spell first
+    spells_to_cast.each do |spell_order|
+      mid_state = spell_order.caster
+
+      case spell_order.spell
+      when :shield
+        target = spell_order.target
+
+        target.shielded = true
+
+        log.push(ColoredText.new('light-blue',
+                                 "#{mid_state.battle_state.player_name} is covered in a shimmering shield."))
+      end
+    end
+
+    spells_to_cast.each do |spell_order|
+      mid_state = spell_order.caster
+
+      case spell_order.spell
+      when :surrender
+        mid_state.battle_state.health = -1
+
+        log.push(ColoredText.new('red', "#{mid_state.battle_state.player_name} surrenders."))
+      when :stab
+        target = spell_order.target
+
+        if target.shielded?
+          log.push(ColoredText.new('dark-blue',
+                                   "#{mid_state.battle_state.player_name}'s dagger glances off of #{target.battle_state.player_name}'s shield."))
+        else
+          target.battle_state.health -= 1
+
+          log.push(ColoredText.new('red',
+                                   "#{mid_state.battle_state.player_name} stabs #{target.battle_state.player_name} for 1 damage."))
+        end
+      when :cause_light_wounds
+        target = spell_order.target
+        target.battle_state.health -= 2
+
+        log.push(ColoredText.new('red',
+                                 "Light wounds appear on #{target.battle_state.player_name}'s body for 2 damage."))
+      when :shield
+        target = mid_state
+      end
+    end
+
+    {
+      log: log,
+      next_states: next_states.map { |mid_state| mid_state.battle_state }
+    }
   end
 
+  def self.both_hands_end_with?(current_state, str)
+    current_state.left_hand.end_with?(str) && current_state.right_hand.end_with?(str)
+  end
+
+  def self.either_hand_ends_with?(current_state, str)
+    current_state.left_hand.end_with?(str) || current_state.right_hand.end_with?(str)
+  end
+
+  # MidBattleState -> MidBattleState
   def self.find_other_warlock(current_state, available_states)
     available_states.find { |state| state != current_state }
   end
