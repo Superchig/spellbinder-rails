@@ -92,6 +92,28 @@ describe SpellbinderRules do
         expect(result[:next_states]).to eq(expected_battle_states)
       end
     end
+
+    describe 'Stabbing yourself' do
+      it 'actually uses yourself as the target' do
+        initial_battle_states = [BattleState.new(orders_left_gesture: '>',
+                                                 orders_right_gesture: 'P', player_name: 'first@example.com',
+                                                 orders_left_target: 'first@example.com'),
+                                 BattleState.new(orders_left_gesture: 'S',
+                                                 orders_right_gesture: 'W', player_name: 'second@example.com')]
+
+        expected_battle_states = [BattleState.new(left_hand: '>', right_hand: 'P', health: 14, player_name: 'first@example.com'),
+                                  BattleState.new(left_hand: 'S', right_hand: 'W', health: 15,
+                                                  player_name: 'second@example.com')]
+
+        expected_log = [ColoredText.new('green', 'first@example.com stabs at themself.'),
+                        ColoredText.new('red', 'first@example.com stabs themself for 1 damage.')]
+
+        result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+        expect(result[:log]).to eq(expected_log)
+        expect(result[:next_states]).to eq(expected_battle_states)
+      end
+    end
   end
 
   describe ColoredText do

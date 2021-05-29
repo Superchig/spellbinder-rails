@@ -1,20 +1,23 @@
 module SpellbinderRules
   class BattleState
-    attr_accessor :left_hand, :right_hand, :health, :orders_left_gesture, :orders_left_spell, :orders_left_target,
-                  :orders_right_gesture, :orders_right_spell, :orders_right_target, :player_name
+    attr_accessor :left_hand, :right_hand, :health, :player_name, :orders_left_gesture, :orders_left_spell, :orders_left_target,
+                  :orders_right_gesture, :orders_right_spell, :orders_right_target, :amnesia
 
-    def initialize(left_hand: '', right_hand: '', health: 15, orders_left_gesture: '',
-                   orders_left_spell: '', orders_left_target: '', orders_right_gesture: '', orders_right_spell: '', orders_right_target: '', player_name: -1)
+    alias amnesia? amnesia
+
+    def initialize(left_hand: '', right_hand: '', health: 15, player_name: '', orders_left_gesture: '',
+                   orders_left_spell: '', orders_left_target: '', orders_right_gesture: '', orders_right_spell: '', orders_right_target: '')
       @left_hand = left_hand
       @right_hand = right_hand
       @health = health
+      @player_name = player_name
       @orders_left_gesture = orders_left_gesture
       @orders_left_spell = orders_left_spell
       @orders_left_target = orders_left_target
       @orders_right_gesture = orders_right_gesture
       @orders_right_spell = orders_right_spell
       @orders_right_target = orders_right_target
-      @player_name = player_name
+      @amnesia = false
     end
 
     def ==(other)
@@ -67,19 +70,28 @@ module SpellbinderRules
   def self.calc_next_turn(battle_states)
     log = []
     next_states = battle_states.map do |battle_state|
-      underlying_state = BattleState.new(left_hand: battle_state.left_hand + battle_state.orders_left_gesture,
-                                         right_hand: battle_state.right_hand + battle_state.orders_right_gesture,
-                                         health: battle_state.health, player_name: battle_state.player_name)
+      underlying_state = battle_state.dup
+      underlying_state.left_hand += battle_state.orders_left_gesture
+      underlying_state.right_hand += battle_state.orders_right_gesture
 
       mid_state = MidBattleState.new(underlying_state)
     end
 
     # Determine which spells are being cast and at whom
     spells_to_cast = next_states.map do |mid_state|
+      orders_left_target = mid_state.battle_state.orders_left_target
+      orders_right_target = mid_state.battle_state.orders_right_target
+
       if both_hands_end_with?(mid_state.battle_state, 'P')
         SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states))
       elsif either_hand_ends_with?(mid_state.battle_state, '>')
-        SpellOrder.new(:stab, mid_state, find_other_warlock(mid_state, next_states))
+        if orders_left_target.nil? || orders_left_target.empty?
+          SpellOrder.new(:stab, mid_state, find_other_warlock(mid_state, next_states))
+        else
+          SpellOrder.new(:stab, mid_state, next_states.find do |m_state|
+                                             m_state.battle_state.player_name == mid_state.battle_state.player_name
+                                           end)
+        end
       elsif either_hand_ends_with?(mid_state.battle_state, 'WFP')
         SpellOrder.new(:cause_light_wounds, mid_state, find_other_warlock(mid_state, next_states))
       elsif either_hand_ends_with?(mid_state.battle_state, 'P')
@@ -97,12 +109,12 @@ module SpellbinderRules
         # Nothing happens here
       when :stab
         log.push(ColoredText.new('green',
-                                 "#{mid_state.battle_state.player_name} stabs at #{target.battle_state.player_name}."))
+                                 "#{mid_state.battle_state.player_name} stabs at #{display_target(mid_state, target)}."))
       when :cause_light_wounds
         log.push(ColoredText.new('green',
-                                 "#{mid_state.battle_state.player_name} casts Cause Light Wounds on #{target.battle_state.player_name}."))
+                                 "#{mid_state.battle_state.player_name} casts Cause Light Wounds on #{display_target(mid_state, target)}."))
       when :shield
-        log.push(ColoredText.new('green', "#{mid_state.battle_state.player_name} casts Shield on themself."))
+        log.push(ColoredText.new('green', "#{mid_state.battle_state.player_name} casts Shield on #{display_target(mid_state, target)}."))
       end
     end
 
@@ -134,20 +146,29 @@ module SpellbinderRules
 
         if target.shielded?
           log.push(ColoredText.new('dark-blue',
-                                   "#{mid_state.battle_state.player_name}'s dagger glances off of #{target.battle_state.player_name}'s shield."))
+                                   "#{mid_state.battle_state.player_name}'s dagger glances off of #{display_target(mid_state, target)}'s shield."))
         else
           target.battle_state.health -= 1
 
           log.push(ColoredText.new('red',
-                                   "#{mid_state.battle_state.player_name} stabs #{target.battle_state.player_name} for 1 damage."))
+                                   "#{mid_state.battle_state.player_name} stabs #{display_target(mid_state, target)} for 1 damage."))
         end
       when :cause_light_wounds
         target = spell_order.target
         target.battle_state.health -= 2
 
         log.push(ColoredText.new('red',
-                                 "Light wounds appear on #{target.battle_state.player_name}'s body for 2 damage."))
+                                 "Light wounds appear on #{display_target(mid_state, target)}'s body for 2 damage."))
       end
+    end
+
+    next_states.each do |mid_state|
+      mid_state.battle_state.orders_left_gesture = ''
+      mid_state.battle_state.orders_left_spell = ''
+      mid_state.battle_state.orders_left_target = ''
+      mid_state.battle_state.orders_right_gesture = ''
+      mid_state.battle_state.orders_right_spell = ''
+      mid_state.battle_state.orders_right_target = ''
     end
 
     {
@@ -167,5 +188,12 @@ module SpellbinderRules
   # MidBattleState -> MidBattleState
   def self.find_other_warlock(current_state, available_states)
     available_states.find { |state| state != current_state }
+  end
+
+  def self.display_target(current_state, target_state)
+    current_name = current_state.battle_state.player_name
+    target_name = target_state.battle_state.player_name
+
+    current_name == target_name ? 'themself' : target_name
   end
 end
