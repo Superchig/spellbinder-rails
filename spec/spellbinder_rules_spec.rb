@@ -44,6 +44,27 @@ describe SpellbinderRules do
         expect(result[:next_states]).to eq(expected_battle_states)
       end
     end
+
+    describe 'The spell "Cause Light Wounds"' do
+      it 'damages the enemy player' do
+        initial_battle_states = [BattleState.new(left_hand: 'WF', orders_left_gesture: 'P',
+                                                 right_hand: 'PP', orders_right_gesture: 'S', player_name: 'first@example.com'),
+                                 BattleState.new(left_hand: '--', orders_left_gesture: 'S',
+                                                 right_hand: '--', orders_right_gesture: 'W', player_name: 'second@example.com')]
+
+        expected_battle_states = [BattleState.new(left_hand: 'WFP', right_hand: 'PPS', health: 15, player_name: 'first@example.com'),
+                                  BattleState.new(left_hand: '--S', right_hand: '--W', health: 13,
+                                                  player_name: 'second@example.com')]
+
+        expected_log = [ColoredText.new('red',
+                                        'first@example.com casts Cause Light Wounds on second@example.com, dealing 2 damage.')]
+
+        result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+        expect(result[:log]).to eq(expected_log)
+        expect(result[:next_states]).to eq(expected_battle_states)
+      end
+    end
   end
 
   describe ColoredText do

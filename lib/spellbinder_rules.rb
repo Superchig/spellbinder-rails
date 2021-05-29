@@ -51,18 +51,27 @@ module SpellbinderRules
     end
 
     next_states.each do |next_state|
-      if next_state.left_hand.end_with?('P') && next_state.left_hand.end_with?('P')
+      if next_state.left_hand.end_with?('P') && next_state.right_hand.end_with?('P')
         next_state.health = -1
 
         log.push(ColoredText.new('red', "#{next_state.player_name} surrenders."))
       elsif next_state.left_hand.end_with?('>') || next_state.right_hand.end_with?('>')
-        target = next_states.find { |state| state != next_state }
+        target = self.find_other_warlock(next_state, next_states)
         target.health -= 1;
 
         log.push(ColoredText.new('red', "#{next_state.player_name} stabs #{target.player_name}, dealing 1 damage."))
+      elsif next_state.left_hand.end_with?('WFP') || next_state.right_hand.end_with?('WFP')
+        target = self.find_other_warlock(next_state, next_states)
+        target.health -= 2;
+
+        log.push(ColoredText.new('red', "#{next_state.player_name} casts Cause Light Wounds on second@example.com, dealing 2 damage."))
       end
     end
 
     { log: log, next_states: next_states }
+  end
+
+  def self.find_other_warlock(current_state, available_states)
+    available_states.find { |state| state != current_state }
   end
 end
