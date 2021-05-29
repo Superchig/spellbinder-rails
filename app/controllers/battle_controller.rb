@@ -55,7 +55,8 @@ class BattleController < ApplicationController
     @targets.prepend('')
 
     @ordered_states = @battle.battle_states.sort_by { |state| state.user.email }
-    @current_state = @ordered_states.find { |battle_state| battle_state.user_id = current_user.id }
+    puts "ordered_states: #{@ordered_states.inspect}"
+    @current_state = @ordered_states.find { |battle_state| battle_state.user_id == current_user.id }
   end
 
   def correct_user
