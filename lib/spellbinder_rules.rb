@@ -147,8 +147,6 @@ module SpellbinderRules
 
         log.push(ColoredText.new('red',
                                  "Light wounds appear on #{target.battle_state.player_name}'s body for 2 damage."))
-      when :shield
-        target = mid_state
       end
     end
 
