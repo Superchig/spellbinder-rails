@@ -160,14 +160,14 @@ describe SpellbinderRules do
 
     describe 'Stabbing with the right hand' do
       it 'should not use the left hand\'s target' do
-        initial_battle_states = [BattleState.new(orders_left_gesture: 'P',
+        initial_battle_states = [BattleState.new(orders_left_gesture: '-',
                                                  orders_right_gesture: '>', player_name: 'first@example.com',
                                                  orders_left_target: 'first@example.com'),
                                  BattleState.new(orders_left_gesture: 'S',
                                                  orders_right_gesture: 'W', player_name: 'second@example.com')]
 
-        expected_battle_states = [BattleState.new(left_hand: 'P', right_hand: '>', health: 14, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: 'S', right_hand: 'W', health: 15,
+        expected_battle_states = [BattleState.new(left_hand: '-', right_hand: '>', health: 15, player_name: 'first@example.com'),
+                                  BattleState.new(left_hand: 'S', right_hand: 'W', health: 14,
                                                   player_name: 'second@example.com')]
 
         expected_log = [ColoredText.new('green', 'first@example.com stabs at second@example.com.'),
