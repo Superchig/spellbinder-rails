@@ -84,20 +84,12 @@ module SpellbinderRules
 
       if both_hands_end_with?(mid_state.battle_state, 'P')
         SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states))
-      elsif either_hand_ends_with?(mid_state.battle_state, '>')
-        if orders_left_target.nil? || orders_left_target.empty?
-          SpellOrder.new(:stab, mid_state, find_other_warlock(mid_state, next_states))
-        else
-          SpellOrder.new(:stab, mid_state, next_states.find do |m_state|
-                                             m_state.battle_state.player_name == mid_state.battle_state.player_name
-                                           end)
-        end
-      elsif either_hand_ends_with?(mid_state.battle_state, 'WFP')
-        SpellOrder.new(:cause_light_wounds, mid_state, find_other_warlock(mid_state, next_states))
-      elsif either_hand_ends_with?(mid_state.battle_state, 'P')
-        SpellOrder.new(:shield, mid_state, mid_state)
+      else
+        left_spell_order = self.parse_unihand_gesture(mid_state, next_states, use_left: true)
+        right_spell_order = self.parse_unihand_gesture(mid_state, next_states, use_left: false)
+        [left_spell_order, right_spell_order]
       end
-    end.reject { |spell_order| spell_order.nil? }
+    end.flatten.reject { |spell_order| spell_order.nil? }
 
     # Print that these spells are being cast.
     spells_to_cast.each do |spell_order|
@@ -109,12 +101,17 @@ module SpellbinderRules
         # Nothing happens here
       when :stab
         log.push(ColoredText.new('green',
-                                 "#{mid_state.battle_state.player_name} stabs at #{display_target(mid_state, target)}."))
+                                 "#{mid_state.battle_state.player_name} stabs at #{display_target(mid_state,
+                                                                                                  target)}."))
       when :cause_light_wounds
         log.push(ColoredText.new('green',
-                                 "#{mid_state.battle_state.player_name} casts Cause Light Wounds on #{display_target(mid_state, target)}."))
+                                 "#{mid_state.battle_state.player_name} casts Cause Light Wounds on #{display_target(
+                                   mid_state, target
+                                 )}."))
       when :shield
-        log.push(ColoredText.new('green', "#{mid_state.battle_state.player_name} casts Shield on #{display_target(mid_state, target)}."))
+        log.push(ColoredText.new('green',
+                                 "#{mid_state.battle_state.player_name} casts Shield on #{display_target(mid_state,
+                                                                                                         target)}."))
       end
     end
 
@@ -146,12 +143,15 @@ module SpellbinderRules
 
         if target.shielded?
           log.push(ColoredText.new('dark-blue',
-                                   "#{mid_state.battle_state.player_name}'s dagger glances off of #{display_target(mid_state, target)}'s shield."))
+                                   "#{mid_state.battle_state.player_name}'s dagger glances off of #{display_target(
+                                     mid_state, target
+                                   )}'s shield."))
         else
           target.battle_state.health -= 1
 
           log.push(ColoredText.new('red',
-                                   "#{mid_state.battle_state.player_name} stabs #{display_target(mid_state, target)} for 1 damage."))
+                                   "#{mid_state.battle_state.player_name} stabs #{display_target(mid_state,
+                                                                                                 target)} for 1 damage."))
         end
       when :cause_light_wounds
         target = spell_order.target
@@ -195,5 +195,24 @@ module SpellbinderRules
     target_name = target_state.battle_state.player_name
 
     current_name == target_name ? 'themself' : target_name
+  end
+
+  def self.parse_unihand_gesture(mid_state, next_states, use_left: true)
+    hand = use_left ? mid_state.battle_state.left_hand : mid_state.battle_state.right_hand
+    target_name = use_left ? mid_state.battle_state.orders_left_target : mid_state.battle_state.orders_right_target
+
+    if hand.end_with?('>')
+      if target_name.nil? || target_name.empty?
+        SpellOrder.new(:stab, mid_state, find_other_warlock(mid_state, next_states))
+      else
+        SpellOrder.new(:stab, mid_state, next_states.find do |m_state|
+                                           m_state.battle_state.player_name == target_name
+                                         end)
+      end
+    elsif hand.end_with?('WFP')
+      SpellOrder.new(:cause_light_wounds, mid_state, find_other_warlock(mid_state, next_states))
+    elsif hand.end_with?('P')
+      SpellOrder.new(:shield, mid_state, mid_state)
+    end
   end
 end

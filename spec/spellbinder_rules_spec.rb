@@ -28,11 +28,11 @@ describe SpellbinderRules do
     describe 'Stabbing players' do
       it 'logs and damages them' do
         initial_battle_states = [BattleState.new(orders_left_gesture: '>',
-                                                 orders_right_gesture: 'P', player_name: 'first@example.com'),
+                                                 orders_right_gesture: '-', player_name: 'first@example.com'),
                                  BattleState.new(orders_left_gesture: 'S',
                                                  orders_right_gesture: 'W', player_name: 'second@example.com')]
 
-        expected_battle_states = [BattleState.new(left_hand: '>', right_hand: 'P', health: 15, player_name: 'first@example.com'),
+        expected_battle_states = [BattleState.new(left_hand: '>', right_hand: '-', health: 15, player_name: 'first@example.com'),
                                   BattleState.new(left_hand: 'S', right_hand: 'W', health: 14,
                                                   player_name: 'second@example.com')]
 
@@ -96,17 +96,82 @@ describe SpellbinderRules do
     describe 'Stabbing yourself' do
       it 'actually uses yourself as the target' do
         initial_battle_states = [BattleState.new(orders_left_gesture: '>',
-                                                 orders_right_gesture: 'P', player_name: 'first@example.com',
+                                                 orders_right_gesture: '-', player_name: 'first@example.com',
                                                  orders_left_target: 'first@example.com'),
                                  BattleState.new(orders_left_gesture: 'S',
                                                  orders_right_gesture: 'W', player_name: 'second@example.com')]
 
-        expected_battle_states = [BattleState.new(left_hand: '>', right_hand: 'P', health: 14, player_name: 'first@example.com'),
+        expected_battle_states = [BattleState.new(left_hand: '>', right_hand: '-', health: 14, player_name: 'first@example.com'),
                                   BattleState.new(left_hand: 'S', right_hand: 'W', health: 15,
                                                   player_name: 'second@example.com')]
 
         expected_log = [ColoredText.new('green', 'first@example.com stabs at themself.'),
                         ColoredText.new('red', 'first@example.com stabs themself for 1 damage.')]
+
+        result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+        expect(result[:log]).to eq(expected_log)
+        expect(result[:next_states]).to eq(expected_battle_states)
+      end
+    end
+
+    describe 'Stabbing a specific other warlock' do
+      it 'should actually target that warlock' do
+        initial_battle_states = [BattleState.new(orders_left_gesture: '>',
+                                                 orders_right_gesture: '-', player_name: 'first@example.com',
+                                                 orders_left_target: 'second@example.com'),
+                                 BattleState.new(orders_left_gesture: 'S',
+                                                 orders_right_gesture: 'W', player_name: 'second@example.com')]
+
+        expected_battle_states = [BattleState.new(left_hand: '>', right_hand: '-', health: 15, player_name: 'first@example.com'),
+                                  BattleState.new(left_hand: 'S', right_hand: 'W', health: 14,
+                                                  player_name: 'second@example.com')]
+
+        expected_log = [ColoredText.new('green', 'first@example.com stabs at second@example.com.'),
+                        ColoredText.new('red', 'first@example.com stabs second@example.com for 1 damage.')]
+
+        result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+        expect(result[:log]).to eq(expected_log)
+        expect(result[:next_states]).to eq(expected_battle_states)
+      end
+    end
+
+    describe 'Stabbing with the right hand' do
+      it 'should actually stab the opponent' do
+        initial_battle_states = [BattleState.new(orders_left_gesture: '-',
+                                                 orders_right_gesture: '>', player_name: 'first@example.com'),
+                                 BattleState.new(orders_left_gesture: 'S',
+                                                 orders_right_gesture: 'W', player_name: 'second@example.com')]
+
+        expected_battle_states = [BattleState.new(left_hand: '-', right_hand: '>', health: 15, player_name: 'first@example.com'),
+                                  BattleState.new(left_hand: 'S', right_hand: 'W', health: 14,
+                                                  player_name: 'second@example.com')]
+
+        expected_log = [ColoredText.new('green', 'first@example.com stabs at second@example.com.'),
+                        ColoredText.new('red', 'first@example.com stabs second@example.com for 1 damage.')]
+
+        result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+        expect(result[:log]).to eq(expected_log)
+        expect(result[:next_states]).to eq(expected_battle_states)
+      end
+    end
+
+    describe 'Stabbing with the right hand' do
+      it 'should not use the left hand\'s target' do
+        initial_battle_states = [BattleState.new(orders_left_gesture: 'P',
+                                                 orders_right_gesture: '>', player_name: 'first@example.com',
+                                                 orders_left_target: 'first@example.com'),
+                                 BattleState.new(orders_left_gesture: 'S',
+                                                 orders_right_gesture: 'W', player_name: 'second@example.com')]
+
+        expected_battle_states = [BattleState.new(left_hand: 'P', right_hand: '>', health: 14, player_name: 'first@example.com'),
+                                  BattleState.new(left_hand: 'S', right_hand: 'W', health: 15,
+                                                  player_name: 'second@example.com')]
+
+        expected_log = [ColoredText.new('green', 'first@example.com stabs at second@example.com.'),
+                        ColoredText.new('red', 'first@example.com stabs second@example.com for 1 damage.')]
 
         result = SpellbinderRules.calc_next_turn(initial_battle_states)
 
