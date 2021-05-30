@@ -183,46 +183,86 @@ describe SpellbinderRules do
 
   describe 'Casting "Cause Light Wounds" with the right hand' do
     it 'should still harm the opponent' do
-        initial_battle_states = [BattleState.new(left_hand: '--', orders_left_gesture: '-',
-                                                 right_hand: 'WF', orders_right_gesture: 'P', player_name: 'first@example.com'),
-                                 BattleState.new(left_hand: '--', orders_left_gesture: 'S',
-                                                 right_hand: '--', orders_right_gesture: 'W', player_name: 'second@example.com')]
+      initial_battle_states = [BattleState.new(left_hand: '--', orders_left_gesture: '-',
+                                               right_hand: 'WF', orders_right_gesture: 'P', player_name: 'first@example.com'),
+                               BattleState.new(left_hand: '--', orders_left_gesture: 'S',
+                                               right_hand: '--', orders_right_gesture: 'W', player_name: 'second@example.com')]
 
-        expected_battle_states = [BattleState.new(left_hand: '---', right_hand: 'WFP', health: 15, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: '--S', right_hand: '--W', health: 13,
-                                                  player_name: 'second@example.com')]
+      expected_battle_states = [BattleState.new(left_hand: '---', right_hand: 'WFP', health: 15, player_name: 'first@example.com'),
+                                BattleState.new(left_hand: '--S', right_hand: '--W', health: 13,
+                                                player_name: 'second@example.com')]
 
-        expected_log = [ColoredText.new('green',
-                                        'first@example.com casts Cause Light Wounds on second@example.com.'),
-                        ColoredText.new('red', 'Light wounds appear on second@example.com\'s body for 2 damage.')]
+      expected_log = [ColoredText.new('green',
+                                      'first@example.com casts Cause Light Wounds on second@example.com.'),
+                      ColoredText.new('red', 'Light wounds appear on second@example.com\'s body for 2 damage.')]
 
-        result = SpellbinderRules.calc_next_turn(initial_battle_states)
+      result = SpellbinderRules.calc_next_turn(initial_battle_states)
 
-        expect(result[:log]).to eq(expected_log)
-        expect(result[:next_states]).to eq(expected_battle_states)
+      expect(result[:log]).to eq(expected_log)
+      expect(result[:next_states]).to eq(expected_battle_states)
     end
   end
 
   describe 'Casting "Cause Light Wounds" at yourself' do
     it 'should harm yourself' do
-        initial_battle_states = [BattleState.new(left_hand: '--', orders_left_gesture: '-',
-                                                 right_hand: 'WF', orders_right_gesture: 'P', player_name: 'first@example.com',
-                                                 orders_right_target: 'first@example.com'),
+      initial_battle_states = [BattleState.new(left_hand: '--', orders_left_gesture: '-',
+                                               right_hand: 'WF', orders_right_gesture: 'P', player_name: 'first@example.com',
+                                               orders_right_target: 'first@example.com'),
+                               BattleState.new(left_hand: '--', orders_left_gesture: 'S',
+                                               right_hand: '--', orders_right_gesture: 'W', player_name: 'second@example.com')]
+
+      expected_battle_states = [BattleState.new(left_hand: '---', right_hand: 'WFP', health: 13, player_name: 'first@example.com'),
+                                BattleState.new(left_hand: '--S', right_hand: '--W', health: 15,
+                                                player_name: 'second@example.com')]
+
+      expected_log = [ColoredText.new('green',
+                                      'first@example.com casts Cause Light Wounds on themself.'),
+                      ColoredText.new('red', 'Light wounds appear on first@example.com\'s body for 2 damage.')]
+
+      result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+      expect(result[:log]).to eq(expected_log)
+      expect(result[:next_states]).to eq(expected_battle_states)
+    end
+  end
+
+  describe 'Casting "Amnesia"' do
+    it 'should force the enemy warlock to repeat identically their gestures in the next turn' do
+      initial_battle_states_1 = [BattleState.new(left_hand: '--', orders_left_gesture: '-',
+                                                 right_hand: 'DP', orders_right_gesture: 'P', player_name: 'first@example.com'),
                                  BattleState.new(left_hand: '--', orders_left_gesture: 'S',
                                                  right_hand: '--', orders_right_gesture: 'W', player_name: 'second@example.com')]
 
-        expected_battle_states = [BattleState.new(left_hand: '---', right_hand: 'WFP', health: 13, player_name: 'first@example.com'),
+      expected_battle_states_1 = [BattleState.new(left_hand: '---', right_hand: 'DPP', health: 15, player_name: 'first@example.com'),
                                   BattleState.new(left_hand: '--S', right_hand: '--W', health: 15,
+                                                  player_name: 'second@example.com', amnesia: true)]
+
+      expected_log_1 = [ColoredText.new('green',
+                                        'first@example.com casts Amnesia on second@example.com.'),
+                        ColoredText.new('yellow', 'second@example.com starts to look blank.')]
+
+      result = SpellbinderRules.calc_next_turn(initial_battle_states_1)
+
+      expect(result[:log]).to eq(expected_log_1)
+      expect(result[:next_states]).to eq(expected_battle_states_1)
+
+      initial_battle_states_2 = expected_battle_states_1.dup
+      initial_battle_states_2[0].orders_left_gesture = '-'
+      initial_battle_states_2[0].orders_right_gesture = '-'
+      initial_battle_states_2[1].orders_left_gesture = '-'
+      initial_battle_states_2[1].orders_right_gesture = '-'
+
+      expected_battle_states_2 = [BattleState.new(left_hand: '----', right_hand: 'DPP-', health: 15, player_name: 'first@example.com'),
+                                  BattleState.new(left_hand: '--SS', right_hand: '--WW', health: 15,
                                                   player_name: 'second@example.com')]
 
-        expected_log = [ColoredText.new('green',
-                                        'first@example.com casts Cause Light Wounds on themself.'),
-                        ColoredText.new('red', 'Light wounds appear on first@example.com\'s body for 2 damage.')]
+      expected_log_2 = [ColoredText.new('yellow',
+                                        'second@example.com forgets what he\'s doing, and makes the same gestures as last round!')]
 
-        result = SpellbinderRules.calc_next_turn(initial_battle_states)
+      result_2 = SpellbinderRules.calc_next_turn(initial_battle_states_2)
 
-        expect(result[:log]).to eq(expected_log)
-        expect(result[:next_states]).to eq(expected_battle_states)
+      expect(result_2[:log]).to eq(expected_log_2)
+      expect(result_2[:next_states]).to eq(expected_battle_states_2)
     end
   end
 

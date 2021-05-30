@@ -1,4 +1,7 @@
 module SpellbinderRules
+  SPELL_NAMES = { surrender: 'Surrender', stab: 'Stab', cause_light_wounds: 'Cause Light Wounds',
+                  amnesia: 'Amnesia', shield: 'Shield' }.freeze
+
   class BattleState
     attr_accessor :left_hand, :right_hand, :health, :player_name, :orders_left_gesture, :orders_left_spell, :orders_left_target,
                   :orders_right_gesture, :orders_right_spell, :orders_right_target, :amnesia
@@ -6,7 +9,8 @@ module SpellbinderRules
     alias amnesia? amnesia
 
     def initialize(left_hand: '', right_hand: '', health: 15, player_name: '', orders_left_gesture: '',
-                   orders_left_spell: '', orders_left_target: '', orders_right_gesture: '', orders_right_spell: '', orders_right_target: '')
+                   orders_left_spell: '', orders_left_target: '', orders_right_gesture: '', orders_right_spell: '', orders_right_target: '',
+                   amnesia: false)
       @left_hand = left_hand
       @right_hand = right_hand
       @health = health
@@ -17,7 +21,7 @@ module SpellbinderRules
       @orders_right_gesture = orders_right_gesture
       @orders_right_spell = orders_right_spell
       @orders_right_target = orders_right_target
-      @amnesia = false
+      @amnesia = amnesia
     end
 
     def ==(other)
@@ -77,13 +81,32 @@ module SpellbinderRules
       mid_state = MidBattleState.new(underlying_state)
     end
 
+    # Handle enchantment effects which mess with gestures
+    next_states.each do |mid_state|
+      if mid_state.battle_state.amnesia?
+        new_left_gesture = mid_state.battle_state.left_hand[-2]
+        new_right_gesture = mid_state.battle_state.right_hand[-2]
+
+        mid_state.battle_state.left_hand[-1] = new_left_gesture
+        mid_state.battle_state.right_hand[-1] = new_right_gesture
+
+        mid_state.battle_state.orders_left_gesture = new_left_gesture
+        mid_state.battle_state.orders_right_gesture = new_right_gesture
+
+        mid_state.battle_state.amnesia = false
+
+        log.push(ColoredText.new('yellow',
+                                 "#{mid_state.battle_state.player_name} forgets what he's doing, and makes the same gestures as last round!"))
+      end
+    end
+
     # Determine which spells are being cast and at whom
     spells_to_cast = next_states.map do |mid_state|
       if both_hands_end_with?(mid_state.battle_state, 'P')
         SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states))
       else
-        left_spell_order = self.parse_unihand_gesture(mid_state, next_states, use_left: true)
-        right_spell_order = self.parse_unihand_gesture(mid_state, next_states, use_left: false)
+        left_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: true)
+        right_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: false)
         [left_spell_order, right_spell_order]
       end
     end.flatten.reject { |spell_order| spell_order.nil? }
@@ -100,15 +123,10 @@ module SpellbinderRules
         log.push(ColoredText.new('green',
                                  "#{mid_state.battle_state.player_name} stabs at #{display_target(mid_state,
                                                                                                   target)}."))
-      when :cause_light_wounds
+      else
         log.push(ColoredText.new('green',
-                                 "#{mid_state.battle_state.player_name} casts Cause Light Wounds on #{display_target(
-                                   mid_state, target
-                                 )}."))
-      when :shield
-        log.push(ColoredText.new('green',
-                                 "#{mid_state.battle_state.player_name} casts Shield on #{display_target(mid_state,
-                                                                                                         target)}."))
+                                 "#{mid_state.battle_state.player_name} casts #{SPELL_NAMES[spell_order.spell]} on #{display_target(mid_state,
+                                                                                                                                    target)}."))
       end
     end
 
@@ -156,6 +174,11 @@ module SpellbinderRules
 
         log.push(ColoredText.new('red',
                                  "Light wounds appear on #{target.battle_state.player_name}'s body for 2 damage."))
+      when :amnesia
+        target = spell_order.target
+        target.battle_state.amnesia = true
+
+        log.push(ColoredText.new('yellow', "#{target.battle_state.player_name} starts to look blank."))
       end
     end
 
@@ -191,6 +214,12 @@ module SpellbinderRules
       else
         SpellOrder.new(:cause_light_wounds, mid_state, find_state_by_name(next_states, target_name))
       end
+    elsif hand.end_with?('DPP')
+      if use_default_target
+        SpellOrder.new(:amnesia, mid_state, find_other_warlock(mid_state, next_states))
+      else
+        SpellOrder.new(:amnesia, mid_state, find_state_by_name(next_states, target_name))
+      end
     elsif hand.end_with?('P')
       if use_default_target
         SpellOrder.new(:shield, mid_state, mid_state)
@@ -199,7 +228,6 @@ module SpellbinderRules
       end
     end
   end
-
 
   def self.both_hands_end_with?(current_state, str)
     current_state.left_hand.end_with?(str) && current_state.right_hand.end_with?(str)
