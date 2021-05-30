@@ -79,9 +79,6 @@ module SpellbinderRules
 
     # Determine which spells are being cast and at whom
     spells_to_cast = next_states.map do |mid_state|
-      orders_left_target = mid_state.battle_state.orders_left_target
-      orders_right_target = mid_state.battle_state.orders_right_target
-
       if both_hands_end_with?(mid_state.battle_state, 'P')
         SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states))
       else
@@ -158,7 +155,7 @@ module SpellbinderRules
         target.battle_state.health -= 2
 
         log.push(ColoredText.new('red',
-                                 "Light wounds appear on #{display_target(mid_state, target)}'s body for 2 damage."))
+                                 "Light wounds appear on #{target.battle_state.player_name}'s body for 2 damage."))
       end
     end
 
@@ -176,6 +173,33 @@ module SpellbinderRules
       next_states: next_states.map { |mid_state| mid_state.battle_state }
     }
   end
+
+  def self.parse_unihand_gesture(mid_state, next_states, use_left: true)
+    hand = use_left ? mid_state.battle_state.left_hand : mid_state.battle_state.right_hand
+    target_name = use_left ? mid_state.battle_state.orders_left_target : mid_state.battle_state.orders_right_target
+    use_default_target = target_name.nil? || target_name.empty?
+
+    if hand.end_with?('>')
+      if use_default_target
+        SpellOrder.new(:stab, mid_state, find_other_warlock(mid_state, next_states))
+      else
+        SpellOrder.new(:stab, mid_state, find_state_by_name(next_states, target_name))
+      end
+    elsif hand.end_with?('WFP')
+      if use_default_target
+        SpellOrder.new(:cause_light_wounds, mid_state, find_other_warlock(mid_state, next_states))
+      else
+        SpellOrder.new(:cause_light_wounds, mid_state, find_state_by_name(next_states, target_name))
+      end
+    elsif hand.end_with?('P')
+      if use_default_target
+        SpellOrder.new(:shield, mid_state, mid_state)
+      else
+        SpellOrder.new(:shield, mid_state, find_state_by_name(next_states, target_name))
+      end
+    end
+  end
+
 
   def self.both_hands_end_with?(current_state, str)
     current_state.left_hand.end_with?(str) && current_state.right_hand.end_with?(str)
@@ -197,22 +221,7 @@ module SpellbinderRules
     current_name == target_name ? 'themself' : target_name
   end
 
-  def self.parse_unihand_gesture(mid_state, next_states, use_left: true)
-    hand = use_left ? mid_state.battle_state.left_hand : mid_state.battle_state.right_hand
-    target_name = use_left ? mid_state.battle_state.orders_left_target : mid_state.battle_state.orders_right_target
-
-    if hand.end_with?('>')
-      if target_name.nil? || target_name.empty?
-        SpellOrder.new(:stab, mid_state, find_other_warlock(mid_state, next_states))
-      else
-        SpellOrder.new(:stab, mid_state, next_states.find do |m_state|
-                                           m_state.battle_state.player_name == target_name
-                                         end)
-      end
-    elsif hand.end_with?('WFP')
-      SpellOrder.new(:cause_light_wounds, mid_state, find_other_warlock(mid_state, next_states))
-    elsif hand.end_with?('P')
-      SpellOrder.new(:shield, mid_state, mid_state)
-    end
+  def self.find_state_by_name(next_states, target_name)
+    next_states.find { |m_state| m_state.battle_state.player_name == target_name }
   end
 end

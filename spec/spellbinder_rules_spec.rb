@@ -181,6 +181,51 @@ describe SpellbinderRules do
     end
   end
 
+  describe 'Casting "Cause Light Wounds" with the right hand' do
+    it 'should still harm the opponent' do
+        initial_battle_states = [BattleState.new(left_hand: '--', orders_left_gesture: '-',
+                                                 right_hand: 'WF', orders_right_gesture: 'P', player_name: 'first@example.com'),
+                                 BattleState.new(left_hand: '--', orders_left_gesture: 'S',
+                                                 right_hand: '--', orders_right_gesture: 'W', player_name: 'second@example.com')]
+
+        expected_battle_states = [BattleState.new(left_hand: '---', right_hand: 'WFP', health: 15, player_name: 'first@example.com'),
+                                  BattleState.new(left_hand: '--S', right_hand: '--W', health: 13,
+                                                  player_name: 'second@example.com')]
+
+        expected_log = [ColoredText.new('green',
+                                        'first@example.com casts Cause Light Wounds on second@example.com.'),
+                        ColoredText.new('red', 'Light wounds appear on second@example.com\'s body for 2 damage.')]
+
+        result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+        expect(result[:log]).to eq(expected_log)
+        expect(result[:next_states]).to eq(expected_battle_states)
+    end
+  end
+
+  describe 'Casting "Cause Light Wounds" at yourself' do
+    it 'should harm yourself' do
+        initial_battle_states = [BattleState.new(left_hand: '--', orders_left_gesture: '-',
+                                                 right_hand: 'WF', orders_right_gesture: 'P', player_name: 'first@example.com',
+                                                 orders_right_target: 'first@example.com'),
+                                 BattleState.new(left_hand: '--', orders_left_gesture: 'S',
+                                                 right_hand: '--', orders_right_gesture: 'W', player_name: 'second@example.com')]
+
+        expected_battle_states = [BattleState.new(left_hand: '---', right_hand: 'WFP', health: 13, player_name: 'first@example.com'),
+                                  BattleState.new(left_hand: '--S', right_hand: '--W', health: 15,
+                                                  player_name: 'second@example.com')]
+
+        expected_log = [ColoredText.new('green',
+                                        'first@example.com casts Cause Light Wounds on themself.'),
+                        ColoredText.new('red', 'Light wounds appear on first@example.com\'s body for 2 damage.')]
+
+        result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+        expect(result[:log]).to eq(expected_log)
+        expect(result[:next_states]).to eq(expected_battle_states)
+    end
+  end
+
   describe ColoredText do
     it 'equals another ColoredText when its sub-values are equal' do
       colored_text1 = ColoredText.new('red', 'first@example.com surrenders.')
