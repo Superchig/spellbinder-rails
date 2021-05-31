@@ -3,35 +3,23 @@ module SpellbinderRules
                   amnesia: 'Amnesia', shield: 'Shield' }.freeze
 
   class BattleState
-    attr_accessor :left_hand, :right_hand, :health, :player_name, :orders_left_gesture, :orders_left_spell, :orders_left_target,
-                  :orders_right_gesture, :orders_right_spell, :orders_right_target, :amnesia
+    attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :amnesia
 
     alias amnesia? amnesia
 
-    def initialize(left_hand: '', right_hand: '', health: 15, player_name: '', orders_left_gesture: '',
-                   orders_left_spell: '', orders_left_target: '', orders_right_gesture: '', orders_right_spell: '', orders_right_target: '',
+    def initialize(left_hand: '', right_hand: '', health: 15, player_name: '', orders: PlayerOrders.new,
                    amnesia: false)
       @left_hand = left_hand
       @right_hand = right_hand
       @health = health
       @player_name = player_name
-      @orders_left_gesture = orders_left_gesture
-      @orders_left_spell = orders_left_spell
-      @orders_left_target = orders_left_target
-      @orders_right_gesture = orders_right_gesture
-      @orders_right_spell = orders_right_spell
-      @orders_right_target = orders_right_target
+      @orders = orders
       @amnesia = amnesia
     end
 
     def ==(other)
       left_hand == other.left_hand && right_hand == other.right_hand && health == other.health \
-                                   && orders_left_gesture == other.orders_left_gesture \
-                                   && orders_left_spell == other.orders_left_spell \
-                                   && orders_left_target = other.orders_left_target \
-                                   && orders_right_gesture == other.orders_right_gesture \
-                                   && orders_right_spell == other.orders_right_spell \
-                                   && orders_right_target == other.orders_right_target \
+                                   && orders == other.orders \
                                    && player_name == other.player_name
     end
   end
@@ -71,12 +59,34 @@ module SpellbinderRules
     end
   end
 
+  class PlayerOrders
+    attr_accessor :left_gesture, :left_spell, :left_target, :right_gesture, :right_spell, :right_target
+
+    def initialize(left_gesture: '', left_spell: '', left_target: '', right_gesture: '', right_spell: '', right_target: '')
+      @left_gesture = left_gesture
+      @left_spell = left_spell
+      @left_target = left_target
+      @right_gesture = right_gesture
+      @right_spell = right_spell
+      @right_target = right_target
+    end
+
+    def ==(other)
+      left_gesture == other.left_gesture &&
+      left_spell == other.left_spell &&
+      left_target == other.left_target &&
+      right_gesture == other.right_gesture &&
+      right_spell == other.right_spell &&
+      right_target == other.right_target
+    end
+  end
+
   def self.calc_next_turn(battle_states)
     log = []
     next_states = battle_states.map do |battle_state|
       underlying_state = battle_state.dup
-      underlying_state.left_hand += battle_state.orders_left_gesture
-      underlying_state.right_hand += battle_state.orders_right_gesture
+      underlying_state.left_hand += battle_state.orders.left_gesture
+      underlying_state.right_hand += battle_state.orders.right_gesture
 
       mid_state = MidBattleState.new(underlying_state)
     end
@@ -90,8 +100,8 @@ module SpellbinderRules
         mid_state.battle_state.left_hand[-1] = new_left_gesture
         mid_state.battle_state.right_hand[-1] = new_right_gesture
 
-        mid_state.battle_state.orders_left_gesture = new_left_gesture
-        mid_state.battle_state.orders_right_gesture = new_right_gesture
+        mid_state.battle_state.orders.left_gesture = new_left_gesture
+        mid_state.battle_state.orders.right_gesture = new_right_gesture
 
         mid_state.battle_state.amnesia = false
 
@@ -183,12 +193,12 @@ module SpellbinderRules
     end
 
     next_states.each do |mid_state|
-      mid_state.battle_state.orders_left_gesture = ''
-      mid_state.battle_state.orders_left_spell = ''
-      mid_state.battle_state.orders_left_target = ''
-      mid_state.battle_state.orders_right_gesture = ''
-      mid_state.battle_state.orders_right_spell = ''
-      mid_state.battle_state.orders_right_target = ''
+      mid_state.battle_state.orders.left_gesture = ''
+      mid_state.battle_state.orders.left_spell = ''
+      mid_state.battle_state.orders.left_target = ''
+      mid_state.battle_state.orders.right_gesture = ''
+      mid_state.battle_state.orders.right_spell = ''
+      mid_state.battle_state.orders.right_target = ''
     end
 
     {
@@ -199,7 +209,7 @@ module SpellbinderRules
 
   def self.parse_unihand_gesture(mid_state, next_states, use_left: true)
     hand = use_left ? mid_state.battle_state.left_hand : mid_state.battle_state.right_hand
-    target_name = use_left ? mid_state.battle_state.orders_left_target : mid_state.battle_state.orders_right_target
+    target_name = use_left ? mid_state.battle_state.orders.left_target : mid_state.battle_state.orders.right_target
     use_default_target = target_name.nil? || target_name.empty?
 
     if hand.end_with?('>')
