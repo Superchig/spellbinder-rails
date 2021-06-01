@@ -277,6 +277,51 @@ describe SpellbinderRules do
     end
   end
 
+  describe 'A warlock casting "Charm Person"' do
+    it 'can override the gesture for another player' do
+      initial_battle_states = [BattleState.new(left_hand: '---',
+                                               right_hand: 'PSD', player_name: 'first@example.com',
+                                               orders: PlayerOrders.new(left_gesture: '-', right_gesture: 'F')),
+                               BattleState.new(left_hand: '---',
+                                               right_hand: '---', player_name: 'second@example.com',
+                                               orders: PlayerOrders.new(left_gesture: 'S', right_gesture: 'W'))]
+
+      expected_battle_states = [BattleState.new(left_hand: '----', right_hand: 'PSDF', health: 15, player_name: 'first@example.com',
+                                                charming_target: 'second@example.com'),
+                                BattleState.new(left_hand: '---S', right_hand: '---W', health: 15,
+                                                player_name: 'second@example.com')]
+
+      expected_log = [ColoredText.new('green',
+                                      'first@example.com casts Charm Person on second@example.com.'),
+                      ColoredText.new('yellow',
+                                      'second@example.com looks intrigued by first@example.com.')]
+
+      result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+      expect(result[:log]).to eq(expected_log)
+      expect(result[:next_states]).to eq(expected_battle_states)
+
+      initial_battle_states_2 = expected_battle_states.dup
+      initial_battle_states_2[0].orders.left_gesture = '-'
+      initial_battle_states_2[0].orders.right_gesture = '-'
+      initial_battle_states_2[1].orders.left_gesture = 'S'
+      initial_battle_states_2[1].orders.right_gesture = 'W'
+      initial_battle_states_2[0].orders.override_gesture = OverrideGesture.new('second@example.com', '-', false)
+
+      expected_battle_states_2 = [BattleState.new(left_hand: '-----', right_hand: 'PSDF-', health: 15, player_name: 'first@example.com'),
+                                  BattleState.new(left_hand: '---SS', right_hand: '---W-', health: 15,
+                                                  player_name: 'second@example.com')]
+
+      expected_log_2 = [ColoredText.new('yellow',
+                                        'second@example.com is charmed into making the wrong gesture with his right hand.')]
+
+      result_2 = SpellbinderRules.calc_next_turn(initial_battle_states_2)
+
+      expect(result_2[:log]).to eq(expected_log_2)
+      expect(result_2[:next_states]).to eq(expected_battle_states_2)
+    end
+  end
+
   describe ColoredText do
     it 'equals another ColoredText when its sub-values are equal' do
       colored_text1 = ColoredText.new('red', 'first@example.com surrenders.')
