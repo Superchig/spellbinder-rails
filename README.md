@@ -5,6 +5,10 @@ a simultaneous pencil-and-paper game about dueling wizards.
 
 Special thanks to RavenBlack Games' online implementation, known as [Warlocks](https://games.ravenblack.net/rules/1/intro.html).
 
+## Notes
+- Currently, a player can only cast one Charm Person spell at a time. In theory, a player can achieve this effect twice in one turn
+  using the Delay Effect spell, but this is currently not supported.
+
 # Default README
 
 This README would normally document whatever steps are necessary to get the
