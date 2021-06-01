@@ -1,14 +1,15 @@
 module SpellbinderRules
   SPELL_NAMES = { surrender: 'Surrender', stab: 'Stab', cause_light_wounds: 'Cause Light Wounds',
-                  amnesia: 'Amnesia', shield: 'Shield', charm_person: 'Charm Person' }.freeze
+                  amnesia: 'Amnesia', shield: 'Shield', charm_person: 'Charm Person', paralysis: 'Paralysis' }.freeze
 
   class BattleState
-    attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :amnesia, :charming_target
+    attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :amnesia, :charming_target,
+                  :paralyzing_target
 
     alias amnesia? amnesia
 
     def initialize(left_hand: '', right_hand: '', health: 15, player_name: '', orders: PlayerOrders.new,
-                   amnesia: false, charming_target: '')
+                   amnesia: false, charming_target: '', paralyzing_target: '')
       @left_hand = left_hand
       @right_hand = right_hand
       @health = health
@@ -16,6 +17,7 @@ module SpellbinderRules
       @orders = orders
       @amnesia = amnesia
       @charming_target = charming_target
+      @paralyzing_target = paralyzing_target
     end
 
     def ==(other)
@@ -23,7 +25,8 @@ module SpellbinderRules
                                    && orders == other.orders \
                                    && player_name == other.player_name \
                                    && amnesia? == other.amnesia? \
-                                   && charming_target == other.charming_target
+                                   && charming_target == other.charming_target \
+                                   && paralyzing_target == other.paralyzing_target
     end
   end
 
@@ -64,9 +67,9 @@ module SpellbinderRules
 
   class PlayerOrders
     attr_accessor :left_gesture, :left_spell, :left_target, :right_gesture, :right_spell, :right_target,
-                  :override_gesture
+                  :override_gesture, :paralyze_target_hand
 
-    def initialize(left_gesture: '', left_spell: '', left_target: '', right_gesture: '', right_spell: '', right_target: '', override_gesture: nil)
+    def initialize(left_gesture: '', left_spell: '', left_target: '', right_gesture: '', right_spell: '', right_target: '', override_gesture: nil, paralyze_target_hand: :neither)
       @left_gesture = left_gesture
       @left_spell = left_spell
       @left_target = left_target
@@ -83,7 +86,8 @@ module SpellbinderRules
         right_gesture == other.right_gesture &&
         right_spell == other.right_spell &&
         right_target == other.right_target &&
-        override_gesture == other.override_gesture
+        override_gesture == other.override_gesture &&
+        paralyze_target_hand == other.paralyze_target_hand
     end
   end
 
@@ -112,7 +116,8 @@ module SpellbinderRules
                SingleHandSpellInfo.new('WFP', :cause_light_wounds, :default_other),
                SingleHandSpellInfo.new('DPP', :amnesia, :default_other),
                SingleHandSpellInfo.new('P', :shield, :default_self),
-               SingleHandSpellInfo.new('PSDF', :charm_person, :default_other)]
+               SingleHandSpellInfo.new('PSDF', :charm_person, :default_other),
+               SingleHandSpellInfo.new('FFF', :paralysis, :default_other)]
   end
 
   def self.calc_next_turn(battle_states)
@@ -141,7 +146,9 @@ module SpellbinderRules
 
         log.push(ColoredText.new('yellow',
                                  "#{mid_state.battle_state.player_name} forgets what he's doing, and makes the same gestures as last round!"))
-      elsif !mid_state.battle_state.orders.override_gesture.nil?
+      end
+
+      unless mid_state.battle_state.orders.override_gesture.nil?
         override_gesture = mid_state.battle_state.orders.override_gesture
         hand_name = override_gesture.left_hand? ? 'left' : 'right'
 
@@ -158,6 +165,25 @@ module SpellbinderRules
 
         log.push(ColoredText.new('yellow',
                                  "#{override_gesture.target_name} is charmed into making the wrong gesture with his #{hand_name} hand."))
+      end
+
+      case mid_state.battle_state.orders.paralyze_target_hand
+      when :left
+        target = find_state_by_name(next_states, mid_state.battle_state.paralyzing_target)
+        target.battle_state.left_hand[-1] = target.battle_state.left_hand[-2]
+        target.battle_state.orders.left_gesture = target.battle_state.left_hand[-2]
+
+        mid_state.battle_state.paralyzing_target = ''
+
+        log.push(ColoredText.new('yellow', "#{target.battle_state.player_name}'s left hand is paralyzed."))
+      when :right
+        target = find_state_by_name(next_states, mid_state.battle_state.paralyzing_target)
+        target.battle_state.right_hand[-1] = target.battle_state.right_hand[-2]
+        target.battle_state.orders.right_gesture = target.battle_state.right_hand[-2]
+
+        mid_state.battle_state.paralyzing_target = ''
+
+        log.push(ColoredText.new('yellow', "#{target.battle_state.player_name}'s right hand is paralyzed."))
       end
     end
 
@@ -242,6 +268,11 @@ module SpellbinderRules
 
         log.push(ColoredText.new('yellow',
                                  "#{target.battle_state.player_name} looks intrigued by #{mid_state.battle_state.player_name}."))
+      when :paralysis
+        mid_state.battle_state.paralyzing_target = target.battle_state.player_name
+
+        log.push(ColoredText.new('yellow',
+                                 "#{target.battle_state.player_name}'s hands start to stiffen."))
       end
     end
 
