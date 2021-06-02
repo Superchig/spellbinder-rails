@@ -412,6 +412,65 @@ describe SpellbinderRules do
     end
   end
 
+  describe 'Casting "Confusion"' do
+    it 'changes one of the target\'s hands into a random gesture' do
+      allow(SpellbinderRules).to receive(:random_gesture) { 'S' }
+      allow(SpellbinderRules).to receive(:random_hand) { :right }
+
+      initial_battle_states = [BattleState.new(left_hand: 'DS',
+                                               right_hand: '--', player_name: 'first@example.com',
+                                               orders: PlayerOrders.new(left_gesture: 'F', right_gesture: '-')),
+                               BattleState.new(left_hand: '--',
+                                               right_hand: '--', player_name: 'second@example.com',
+                                               orders: PlayerOrders.new(left_gesture: 'W', right_gesture: '-'))]
+
+      expected_battle_states = [BattleState.new(left_hand: 'DSF', right_hand: '---', health: 15, player_name: 'first@example.com'),
+                                BattleState.new(left_hand: '--W', right_hand: '---', health: 15,
+                                                player_name: 'second@example.com', confused: true)]
+
+      expected_log = [ColoredText.new('green',
+                                      'first@example.com casts Confusion on second@example.com.'),
+                      ColoredText.new('yellow',
+                                      'second@example.com looks confused.')]
+
+      result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+      expect(result[:log]).to eq(expected_log)
+      expect(result[:next_states]).to eq(expected_battle_states)
+
+      initial_battle_states_2 = expected_battle_states.dup
+      initial_battle_states_2[0].orders.left_gesture = '-'
+      initial_battle_states_2[0].orders.right_gesture = '-'
+      initial_battle_states_2[1].orders.left_gesture = '-'
+      initial_battle_states_2[1].orders.right_gesture = '-'
+
+      expected_battle_states_2 = [BattleState.new(left_hand: 'DSF-', right_hand: '----', health: 15, player_name: 'first@example.com'),
+                                  BattleState.new(left_hand: '--W-', right_hand: '---S', health: 15,
+                                                  player_name: 'second@example.com')]
+
+      expected_log_2 = [ColoredText.new('yellow',
+                                        'second@example.com, in their confusion, makes the wrong gesture with their right hand.')]
+
+      result_2 = SpellbinderRules.calc_next_turn(initial_battle_states_2)
+
+      expect(result_2[:log]).to eq(expected_log_2)
+      expect(result_2[:next_states]).to eq(expected_battle_states_2)
+    end
+  end
+
+  describe '.random_gesture' do
+    it 'can be mocked (stubbed?) correctly' do
+      allow(SpellbinderRules).to receive(:random_gesture) { 'P' }
+
+      expect(SpellbinderRules.random_gesture).to eql('P')
+    end
+  end
+
+  describe 'Casting Confusion' do
+    it 'randomly replaces one of the target\'s gestures' do
+    end
+  end
+
   describe ColoredText do
     it 'equals another ColoredText when its sub-values are equal' do
       colored_text1 = ColoredText.new('red', 'first@example.com surrenders.')

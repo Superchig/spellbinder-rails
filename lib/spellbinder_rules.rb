@@ -1,25 +1,24 @@
 module SpellbinderRules
-  SPELL_NAMES = { surrender: 'Surrender', stab: 'Stab', cause_light_wounds: 'Cause Light Wounds',
-                  amnesia: 'Amnesia', shield: 'Shield', charm_person: 'Charm Person', paralysis: 'Paralysis' }.freeze
-
   PARALYZE_GESTURE_CONVERSIONS = { 'C' => 'F', 'S' => 'D', 'W' => 'P',
                                    'F' => 'F', 'D' => 'D', 'P' => 'P',
                                    '>' => '>', '-' => '-' }
 
   class BattleState
-    attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :amnesia, :charming_target,
+    attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :amnesia, :confused, :charming_target,
                   :paralyzing_target
 
     alias amnesia? amnesia
+    alias confused? confused
 
     def initialize(left_hand: '', right_hand: '', health: 15, player_name: '', orders: PlayerOrders.new,
-                   amnesia: false, charming_target: '', paralyzing_target: '')
+                   amnesia: false, confused: false, charming_target: '', paralyzing_target: '')
       @left_hand = left_hand
       @right_hand = right_hand
       @health = health
       @player_name = player_name
       @orders = orders
       @amnesia = amnesia
+      @confused = confused
       @charming_target = charming_target
       @paralyzing_target = paralyzing_target
     end
@@ -121,7 +120,8 @@ module SpellbinderRules
                SingleHandSpellInfo.new('DPP', :amnesia, :default_other),
                SingleHandSpellInfo.new('P', :shield, :default_self),
                SingleHandSpellInfo.new('PSDF', :charm_person, :default_other),
-               SingleHandSpellInfo.new('FFF', :paralysis, :default_other)]
+               SingleHandSpellInfo.new('FFF', :paralysis, :default_other),
+               SingleHandSpellInfo.new('DSF', :confusion, :default_other)]
   end
 
   def self.calc_next_turn(battle_states)
@@ -150,6 +150,22 @@ module SpellbinderRules
 
         log.push(ColoredText.new('yellow',
                                  "#{mid_state.battle_state.player_name} forgets what he's doing, and makes the same gestures as last round!"))
+      end
+
+      if mid_state.battle_state.confused?
+        if random_hand == :left
+          gesture = random_gesture
+          mid_state.battle_state.left_hand[-1] = gesture
+          mid_state.battle_state.orders.left_gesture = gesture
+
+          log.push(ColoredText.new('yellow', "#{mid_state.battle_state.player_name}, in their confusion, makes the wrong gesture with their left hand."))
+        else
+          gesture = random_gesture
+          mid_state.battle_state.right_hand[-1] = gesture
+          mid_state.battle_state.orders.right_gesture = gesture
+
+          log.push(ColoredText.new('yellow', "#{mid_state.battle_state.player_name}, in their confusion, makes the wrong gesture with their right hand."))
+        end
       end
 
       unless mid_state.battle_state.orders.override_gesture.nil?
@@ -218,8 +234,8 @@ module SpellbinderRules
                                                                                                   target)}."))
       else
         log.push(ColoredText.new('green',
-                                 "#{mid_state.battle_state.player_name} casts #{SPELL_NAMES[spell_order.spell]} on #{display_target(mid_state,
-                                                                                                                                    target)}."))
+                                 "#{mid_state.battle_state.player_name} casts #{find_spell_name(spell_order.spell)} on #{display_target(mid_state,
+                                                                                                                                        target)}."))
       end
     end
 
@@ -279,6 +295,10 @@ module SpellbinderRules
 
         log.push(ColoredText.new('yellow',
                                  "#{target.battle_state.player_name}'s hands start to stiffen."))
+      when :confusion
+        target.battle_state.confused = true
+
+        log.push(ColoredText.new('yellow', "#{target.battle_state.player_name} looks confused."))
       end
     end
 
@@ -335,5 +355,18 @@ module SpellbinderRules
 
   def self.find_state_by_name(next_states, target_name)
     next_states.find { |m_state| m_state.battle_state.player_name == target_name }
+  end
+
+  def self.random_gesture
+    ['C', 'S', 'W', 'F', 'D', 'P', '>', '-'].sample
+  end
+
+  def self.random_hand
+    %i[left right].sample
+  end
+
+  # :cause_light_wounds => "Cause Light Wounds"
+  def self.find_spell_name(symbol)
+    symbol.to_s.split('_').map(&:capitalize).join(' ')
   end
 end
