@@ -367,6 +367,51 @@ describe SpellbinderRules do
     end
   end
 
+  describe 'Casting "Paralysis" on a hand with "S"' do
+    it 'transforms the "S" into a "D"' do
+      initial_battle_states = [BattleState.new(left_hand: 'FF',
+                                               right_hand: '--', player_name: 'first@example.com',
+                                               orders: PlayerOrders.new(left_gesture: 'F', right_gesture: '-')),
+                               BattleState.new(left_hand: '--',
+                                               right_hand: '--', player_name: 'second@example.com',
+                                               orders: PlayerOrders.new(left_gesture: 'S', right_gesture: '-'))]
+
+      expected_battle_states = [BattleState.new(left_hand: 'FFF', right_hand: '---', health: 15, player_name: 'first@example.com',
+                                                paralyzing_target: 'second@example.com'),
+                                BattleState.new(left_hand: '--S', right_hand: '---', health: 15,
+                                                player_name: 'second@example.com')]
+
+      expected_log = [ColoredText.new('green',
+                                      'first@example.com casts Paralysis on second@example.com.'),
+                      ColoredText.new('yellow',
+                                      'second@example.com\'s hands start to stiffen.')]
+
+      result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+      expect(result[:log]).to eq(expected_log)
+      expect(result[:next_states]).to eq(expected_battle_states)
+
+      initial_battle_states_2 = expected_battle_states.dup
+      initial_battle_states_2[0].orders.left_gesture = '-'
+      initial_battle_states_2[0].orders.right_gesture = '-'
+      initial_battle_states_2[0].orders.paralyze_target_hand = :left
+      initial_battle_states_2[1].orders.left_gesture = 'F'
+      initial_battle_states_2[1].orders.right_gesture = '-'
+
+      expected_battle_states_2 = [BattleState.new(left_hand: 'FFF-', right_hand: '----', health: 15, player_name: 'first@example.com'),
+                                  BattleState.new(left_hand: '--SD', right_hand: '----', health: 15,
+                                                  player_name: 'second@example.com')]
+
+      expected_log_2 = [ColoredText.new('yellow',
+                                        'second@example.com\'s left hand is paralyzed.')]
+
+      result_2 = SpellbinderRules.calc_next_turn(initial_battle_states_2)
+
+      expect(result_2[:log]).to eq(expected_log_2)
+      expect(result_2[:next_states]).to eq(expected_battle_states_2)
+    end
+  end
+
   describe ColoredText do
     it 'equals another ColoredText when its sub-values are equal' do
       colored_text1 = ColoredText.new('red', 'first@example.com surrenders.')

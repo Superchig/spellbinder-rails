@@ -2,6 +2,10 @@ module SpellbinderRules
   SPELL_NAMES = { surrender: 'Surrender', stab: 'Stab', cause_light_wounds: 'Cause Light Wounds',
                   amnesia: 'Amnesia', shield: 'Shield', charm_person: 'Charm Person', paralysis: 'Paralysis' }.freeze
 
+  PARALYZE_GESTURE_CONVERSIONS = { 'C' => 'F', 'S' => 'D', 'W' => 'P',
+                                   'F' => 'F', 'D' => 'D', 'P' => 'P',
+                                   '>' => '>', '-' => '-' }
+
   class BattleState
     attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :amnesia, :charming_target,
                   :paralyzing_target
@@ -170,16 +174,18 @@ module SpellbinderRules
       case mid_state.battle_state.orders.paralyze_target_hand
       when :left
         target = find_state_by_name(next_states, mid_state.battle_state.paralyzing_target)
-        target.battle_state.left_hand[-1] = target.battle_state.left_hand[-2]
-        target.battle_state.orders.left_gesture = target.battle_state.left_hand[-2]
+        paralyze_gesture = PARALYZE_GESTURE_CONVERSIONS[target.battle_state.left_hand[-2]]
+        target.battle_state.left_hand[-1] = paralyze_gesture
+        target.battle_state.orders.left_gesture = paralyze_gesture
 
         mid_state.battle_state.paralyzing_target = ''
 
         log.push(ColoredText.new('yellow', "#{target.battle_state.player_name}'s left hand is paralyzed."))
       when :right
         target = find_state_by_name(next_states, mid_state.battle_state.paralyzing_target)
-        target.battle_state.right_hand[-1] = target.battle_state.right_hand[-2]
-        target.battle_state.orders.right_gesture = target.battle_state.right_hand[-2]
+        paralyze_gesture = PARALYZE_GESTURE_CONVERSIONS[target.battle_state.right_hand[-2]]
+        target.battle_state.right_hand[-1] = paralyze_gesture
+        target.battle_state.orders.right_gesture = paralyze_gesture
 
         mid_state.battle_state.paralyzing_target = ''
 
