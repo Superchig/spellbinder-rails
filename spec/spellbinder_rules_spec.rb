@@ -458,6 +458,49 @@ describe SpellbinderRules do
     end
   end
 
+  describe 'Casting "Fear"' do
+    it 'prevents the target from performing a C, D, F, or S gesture' do
+      initial_battle_states = [BattleState.new(left_hand: 'SW',
+                                               right_hand: '--', player_name: 'first@example.com',
+                                               orders: PlayerOrders.new(left_gesture: 'D', right_gesture: '-')),
+                               BattleState.new(left_hand: '--',
+                                               right_hand: '--', player_name: 'second@example.com',
+                                               orders: PlayerOrders.new(left_gesture: 'W', right_gesture: '-'))]
+
+      expected_battle_states = [BattleState.new(left_hand: 'SWD', right_hand: '---', health: 15, player_name: 'first@example.com'),
+                                BattleState.new(left_hand: '--W', right_hand: '---', health: 15,
+                                                player_name: 'second@example.com', scared: true)]
+
+      expected_log = [ColoredText.new('green',
+                                      'first@example.com casts Fear on second@example.com.'),
+                      ColoredText.new('yellow',
+                                      'second@example.com looks scared.')]
+
+      result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+      expect(result[:log]).to eq(expected_log)
+      expect(result[:next_states]).to eq(expected_battle_states)
+
+      initial_battle_states_2 = expected_battle_states.dup
+      initial_battle_states_2[0].orders.left_gesture = '-'
+      initial_battle_states_2[0].orders.right_gesture = '-'
+      initial_battle_states_2[1].orders.left_gesture = 'D'
+      initial_battle_states_2[1].orders.right_gesture = 'F'
+
+      expected_battle_states_2 = [BattleState.new(left_hand: 'SWD-', right_hand: '----', health: 15, player_name: 'first@example.com'),
+                                  BattleState.new(left_hand: '--W-', right_hand: '----', health: 15,
+                                                  player_name: 'second@example.com')]
+
+      expected_log_2 = [ColoredText.new('yellow',
+                                        'second@example.com, out of fear, fails to make a C, D, F, or S.')]
+
+      result_2 = SpellbinderRules.calc_next_turn(initial_battle_states_2)
+
+      expect(result_2[:log]).to eq(expected_log_2)
+      expect(result_2[:next_states]).to eq(expected_battle_states_2)
+    end
+  end
+
   describe 'Casting "Anti Spell"' do
     it 'prevents the target from using gestures made on or before the turn' do
       initial_battle_states = [BattleState.new(left_hand: 'SPF',

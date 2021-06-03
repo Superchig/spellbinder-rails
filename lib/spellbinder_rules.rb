@@ -3,15 +3,19 @@ module SpellbinderRules
                                    'F' => 'F', 'D' => 'D', 'P' => 'P',
                                    '>' => '>', '-' => '-' }
 
+  FEAR_GESTURE_CONVERSIONS = { 'C' => '-', 'D' => '-', 'F' => '-', 'S' => '-',
+                               'W' => 'W', 'P' => 'P', '>' => '>', '-' => '-' }
+
   class BattleState
     attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :amnesia, :confused, :charming_target,
-                  :paralyzing_target, :last_turn_anti_spelled
+                  :paralyzing_target, :scared, :last_turn_anti_spelled
 
     alias amnesia? amnesia
     alias confused? confused
+    alias scared? scared
 
     def initialize(left_hand: '', right_hand: '', health: 15, player_name: '', orders: PlayerOrders.new,
-                   amnesia: false, confused: false, charming_target: '', paralyzing_target: '', last_turn_anti_spelled: -1)
+                   amnesia: false, confused: false, charming_target: '', paralyzing_target: '', scared: false, last_turn_anti_spelled: -1)
       @left_hand = left_hand
       @right_hand = right_hand
       @health = health
@@ -21,6 +25,7 @@ module SpellbinderRules
       @confused = confused
       @charming_target = charming_target
       @paralyzing_target = paralyzing_target
+      @scared = scared
       @last_turn_anti_spelled = last_turn_anti_spelled
     end
 
@@ -31,6 +36,7 @@ module SpellbinderRules
                                    && amnesia? == other.amnesia? \
                                    && charming_target == other.charming_target \
                                    && paralyzing_target == other.paralyzing_target \
+                                   && scared? == other.scared? \
                                    && last_turn_anti_spelled == other.last_turn_anti_spelled
     end
   end
@@ -124,7 +130,8 @@ module SpellbinderRules
                SingleHandSpellInfo.new('P', :shield, :default_self),
                SingleHandSpellInfo.new('PSDF', :charm_person, :default_other),
                SingleHandSpellInfo.new('FFF', :paralysis, :default_other),
-               SingleHandSpellInfo.new('DSF', :confusion, :default_other)]
+               SingleHandSpellInfo.new('DSF', :confusion, :default_other),
+               SingleHandSpellInfo.new('SWD', :fear, :default_other)]
   end
 
   def self.calc_next_turn(battle_states)
@@ -212,6 +219,19 @@ module SpellbinderRules
 
         log.push(ColoredText.new('yellow', "#{target.battle_state.player_name}'s right hand is paralyzed."))
       end
+
+      next unless mid_state.battle_state.scared?
+
+      mid_state.battle_state.orders.left_gesture = FEAR_GESTURE_CONVERSIONS[mid_state.battle_state.orders.left_gesture]
+      mid_state.battle_state.left_hand[-1] = mid_state.battle_state.orders.left_gesture
+
+      mid_state.battle_state.orders.right_gesture = FEAR_GESTURE_CONVERSIONS[mid_state.battle_state.orders.right_gesture]
+      mid_state.battle_state.right_hand[-1] = mid_state.battle_state.orders.right_gesture
+
+      mid_state.battle_state.scared = false
+
+      log.push(ColoredText.new('yellow',
+                               "#{mid_state.battle_state.player_name}, out of fear, fails to make a C, D, F, or S."))
     end
 
     # Determine which spells are being cast and at whom
@@ -304,6 +324,10 @@ module SpellbinderRules
         target.battle_state.confused = true
 
         log.push(ColoredText.new('yellow', "#{target.battle_state.player_name} looks confused."))
+      when :fear
+        target.battle_state.scared = true
+
+        log.push(ColoredText.new('yellow', "#{target.battle_state.player_name} looks scared."))
       when :anti_spell
         target.battle_state.last_turn_anti_spelled = target.battle_state.left_hand.size - 1
       end
