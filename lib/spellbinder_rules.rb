@@ -5,13 +5,13 @@ module SpellbinderRules
 
   class BattleState
     attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :amnesia, :confused, :charming_target,
-                  :paralyzing_target
+                  :paralyzing_target, :last_turn_anti_spelled
 
     alias amnesia? amnesia
     alias confused? confused
 
     def initialize(left_hand: '', right_hand: '', health: 15, player_name: '', orders: PlayerOrders.new,
-                   amnesia: false, confused: false, charming_target: '', paralyzing_target: '')
+                   amnesia: false, confused: false, charming_target: '', paralyzing_target: '', last_turn_anti_spelled: -1)
       @left_hand = left_hand
       @right_hand = right_hand
       @health = health
@@ -21,6 +21,7 @@ module SpellbinderRules
       @confused = confused
       @charming_target = charming_target
       @paralyzing_target = paralyzing_target
+      @last_turn_anti_spelled = last_turn_anti_spelled
     end
 
     def ==(other)
@@ -29,7 +30,8 @@ module SpellbinderRules
                                    && player_name == other.player_name \
                                    && amnesia? == other.amnesia? \
                                    && charming_target == other.charming_target \
-                                   && paralyzing_target == other.paralyzing_target
+                                   && paralyzing_target == other.paralyzing_target \
+                                   && last_turn_anti_spelled == other.last_turn_anti_spelled
     end
   end
 
@@ -118,6 +120,7 @@ module SpellbinderRules
     RECORDS = [SingleHandSpellInfo.new('>', :stab, :default_other),
                SingleHandSpellInfo.new('WFP', :cause_light_wounds, :default_other),
                SingleHandSpellInfo.new('DPP', :amnesia, :default_other),
+               SingleHandSpellInfo.new('SPFP', :anti_spell, :default_other),
                SingleHandSpellInfo.new('P', :shield, :default_self),
                SingleHandSpellInfo.new('PSDF', :charm_person, :default_other),
                SingleHandSpellInfo.new('FFF', :paralysis, :default_other),
@@ -158,13 +161,15 @@ module SpellbinderRules
           mid_state.battle_state.left_hand[-1] = gesture
           mid_state.battle_state.orders.left_gesture = gesture
 
-          log.push(ColoredText.new('yellow', "#{mid_state.battle_state.player_name}, in their confusion, makes the wrong gesture with their left hand."))
+          log.push(ColoredText.new('yellow',
+                                   "#{mid_state.battle_state.player_name}, in their confusion, makes the wrong gesture with their left hand."))
         else
           gesture = random_gesture
           mid_state.battle_state.right_hand[-1] = gesture
           mid_state.battle_state.orders.right_gesture = gesture
 
-          log.push(ColoredText.new('yellow', "#{mid_state.battle_state.player_name}, in their confusion, makes the wrong gesture with their right hand."))
+          log.push(ColoredText.new('yellow',
+                                   "#{mid_state.battle_state.player_name}, in their confusion, makes the wrong gesture with their right hand."))
         end
       end
 
@@ -299,6 +304,8 @@ module SpellbinderRules
         target.battle_state.confused = true
 
         log.push(ColoredText.new('yellow', "#{target.battle_state.player_name} looks confused."))
+      when :anti_spell
+        target.battle_state.last_turn_anti_spelled = target.battle_state.left_hand.size - 1
       end
     end
 
@@ -313,7 +320,7 @@ module SpellbinderRules
   end
 
   def self.parse_unihand_gesture(mid_state, next_states, use_left: true)
-    hand = use_left ? mid_state.battle_state.left_hand : mid_state.battle_state.right_hand
+    hand = viable_gestures(mid_state.battle_state, left_hand: use_left)
     target_name = use_left ? mid_state.battle_state.orders.left_target : mid_state.battle_state.orders.right_target
     use_default_target = target_name.nil? || target_name.empty?
 
@@ -334,11 +341,9 @@ module SpellbinderRules
   end
 
   def self.both_hands_end_with?(current_state, str)
-    current_state.left_hand.end_with?(str) && current_state.right_hand.end_with?(str)
-  end
-
-  def self.either_hand_ends_with?(current_state, str)
-    current_state.left_hand.end_with?(str) || current_state.right_hand.end_with?(str)
+    left_hand = viable_gestures(current_state, left_hand: true)
+    right_hand = viable_gestures(current_state, left_hand: false)
+    left_hand.end_with?(str) && right_hand.end_with?(str)
   end
 
   # MidBattleState -> MidBattleState
@@ -368,5 +373,10 @@ module SpellbinderRules
   # :cause_light_wounds => "Cause Light Wounds"
   def self.find_spell_name(symbol)
     symbol.to_s.split('_').map(&:capitalize).join(' ')
+  end
+
+  def self.viable_gestures(battle_state, left_hand: true)
+    hand = left_hand ? battle_state.left_hand : battle_state.right_hand
+    hand[battle_state.last_turn_anti_spelled + 1..hand.size]
   end
 end

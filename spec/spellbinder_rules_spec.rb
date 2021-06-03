@@ -458,6 +458,49 @@ describe SpellbinderRules do
     end
   end
 
+  describe 'Casting "Anti Spell"' do
+    it 'prevents the target from using gestures made on or before the turn' do
+      initial_battle_states = [BattleState.new(left_hand: 'SPF',
+                                               right_hand: '---', player_name: 'first@example.com',
+                                               orders: PlayerOrders.new(left_gesture: 'P', right_gesture: '-')),
+                               BattleState.new(left_hand: '---',
+                                               right_hand: '--W', player_name: 'second@example.com',
+                                               orders: PlayerOrders.new(left_gesture: '-', right_gesture: 'F'))]
+
+      expected_battle_states = [BattleState.new(left_hand: 'SPFP', right_hand: '----', health: 15, player_name: 'first@example.com'),
+                                BattleState.new(left_hand: '----', right_hand: '--WF', health: 15,
+                                                player_name: 'second@example.com', last_turn_anti_spelled: 3)]
+
+      expected_log = [ColoredText.new('green',
+                                      'first@example.com casts Anti Spell on second@example.com.')]
+
+      result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+      expect(result[:log]).to eq(expected_log)
+      expect(result[:next_states]).to eq(expected_battle_states)
+
+      initial_battle_states_2 = expected_battle_states.dup
+      initial_battle_states_2[0].orders.left_gesture = '-'
+      initial_battle_states_2[0].orders.right_gesture = '-'
+      initial_battle_states_2[1].orders.left_gesture = '-'
+      initial_battle_states_2[1].orders.right_gesture = 'P'
+
+      expected_battle_states_2 = [BattleState.new(left_hand: 'SPFP-', right_hand: '-----', health: 15, player_name: 'first@example.com'),
+                                  BattleState.new(left_hand: '-----', right_hand: '--WFP', health: 15,
+                                                  player_name: 'second@example.com', last_turn_anti_spelled: 3)]
+
+      expected_log_2 = [ColoredText.new('green',
+                                        'second@example.com casts Shield on themself.'),
+                        ColoredText.new('light-blue',
+                                        'second@example.com is covered in a shimmering shield.')]
+
+      result_2 = SpellbinderRules.calc_next_turn(initial_battle_states_2)
+
+      expect(result_2[:log]).to eq(expected_log_2)
+      expect(result_2[:next_states]).to eq(expected_battle_states_2)
+    end
+  end
+
   describe '.random_gesture' do
     it 'can be mocked (stubbed?) correctly' do
       allow(SpellbinderRules).to receive(:random_gesture) { 'P' }
