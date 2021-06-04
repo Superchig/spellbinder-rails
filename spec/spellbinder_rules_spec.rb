@@ -544,16 +544,97 @@ describe SpellbinderRules do
     end
   end
 
+  describe 'Casting "Protection"' do
+    it 'protects the caster for this turn and the following two as if using a Shield spell.' do
+      initial_battle_states = [BattleState.new(left_hand: 'WW',
+                                               right_hand: '--', player_name: 'first@example.com',
+                                               orders: PlayerOrders.new(left_gesture: 'P', right_gesture: '-')),
+                               BattleState.new(left_hand: '--',
+                                               right_hand: '--', player_name: 'second@example.com',
+                                               orders: PlayerOrders.new(left_gesture: '-', right_gesture: '>'))]
+
+      expected_battle_states = [BattleState.new(left_hand: 'WWP', right_hand: '---', health: 15, player_name: 'first@example.com',
+                                                remaining_protection_turns: 2),
+                                BattleState.new(left_hand: '---', right_hand: '-->', health: 15,
+                                                player_name: 'second@example.com')]
+
+      expected_log = [ColoredText.new('green',
+                                      'first@example.com casts Protection on themself.'),
+                      ColoredText.new('green',
+                                      'second@example.com stabs at first@example.com.'),
+                      ColoredText.new('light-blue',
+                                      'first@example.com is covered in a thick shimmering shield.'),
+                      ColoredText.new('dark-blue',
+                                      'second@example.com\'s dagger glances off of first@example.com\'s shield.')]
+
+      result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+      expect(result[:log]).to eq(expected_log)
+      expect(result[:next_states]).to eq(expected_battle_states)
+
+      initial_battle_states_2 = expected_battle_states.dup
+      initial_battle_states_2[0].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
+      initial_battle_states_2[1].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '>')
+
+      expected_battle_states_2 = [BattleState.new(left_hand: 'WWP-', right_hand: '----', health: 15, player_name: 'first@example.com', remaining_protection_turns: 1),
+                                  BattleState.new(left_hand: '----', right_hand: '-->>', health: 15,
+                                                  player_name: 'second@example.com')]
+
+      expected_log_2 = [ColoredText.new('green',
+                                        'second@example.com stabs at first@example.com.'),
+                        ColoredText.new('light-blue',
+                                        'first@example.com is covered in a shimmering shield.'),
+                        ColoredText.new('dark-blue',
+                                        'second@example.com\'s dagger glances off of first@example.com\'s shield.')]
+
+      result_2 = SpellbinderRules.calc_next_turn(initial_battle_states_2)
+
+      expect(result_2[:log]).to eq(expected_log_2)
+      expect(result_2[:next_states]).to eq(expected_battle_states_2)
+
+      initial_battle_states_3 = expected_battle_states_2.dup
+      initial_battle_states_3[0].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
+      initial_battle_states_3[1].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '>')
+
+      expected_battle_states_3 = [BattleState.new(left_hand: 'WWP--', right_hand: '-----', health: 15, player_name: 'first@example.com', remaining_protection_turns: 0),
+                                  BattleState.new(left_hand: '-----', right_hand: '-->>>', health: 15, player_name: 'second@example.com')]
+
+      expected_log_3 = [ColoredText.new('green',
+                                        'second@example.com stabs at first@example.com.'),
+                        ColoredText.new('light-blue',
+                                        'first@example.com is covered in a shimmering shield.'),
+                        ColoredText.new('dark-blue',
+                                        'second@example.com\'s dagger glances off of first@example.com\'s shield.')]
+
+      result_3 = SpellbinderRules.calc_next_turn(initial_battle_states_3)
+
+      expect(result_3[:log]).to eq(expected_log_3)
+      expect(result_3[:next_states]).to eq(expected_battle_states_3)
+
+      initial_battle_states_4 = expected_battle_states_3.dup
+      initial_battle_states_4[0].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
+      initial_battle_states_4[1].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '>')
+
+      expected_battle_states_4 = [BattleState.new(left_hand: 'WWP---', right_hand: '------', health: 14, player_name: 'first@example.com', remaining_protection_turns: 0),
+                                  BattleState.new(left_hand: '------', right_hand: '-->>>>', health: 15, player_name: 'second@example.com')]
+
+      expected_log_4 = [ColoredText.new('green',
+                                        'second@example.com stabs at first@example.com.'),
+                        ColoredText.new('red',
+                                        'second@example.com stabs first@example.com for 1 damage.')]
+
+      result_4 = SpellbinderRules.calc_next_turn(initial_battle_states_4)
+
+      expect(result_4[:log]).to eq(expected_log_4)
+      expect(result_4[:next_states]).to eq(expected_battle_states_4)
+    end
+  end
+
   describe '.random_gesture' do
     it 'can be mocked (stubbed?) correctly' do
       allow(SpellbinderRules).to receive(:random_gesture) { 'P' }
 
       expect(SpellbinderRules.random_gesture).to eql('P')
-    end
-  end
-
-  describe 'Casting Confusion' do
-    it 'randomly replaces one of the target\'s gestures' do
     end
   end
 

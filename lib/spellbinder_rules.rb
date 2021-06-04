@@ -8,14 +8,15 @@ module SpellbinderRules
 
   class BattleState
     attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :amnesia, :confused, :charming_target,
-                  :paralyzing_target, :scared, :last_turn_anti_spelled
+                  :paralyzing_target, :scared, :last_turn_anti_spelled, :remaining_protection_turns
 
     alias amnesia? amnesia
     alias confused? confused
     alias scared? scared
 
     def initialize(left_hand: '', right_hand: '', health: 15, player_name: '', orders: PlayerOrders.new,
-                   amnesia: false, confused: false, charming_target: '', paralyzing_target: '', scared: false, last_turn_anti_spelled: -1)
+                   amnesia: false, confused: false, charming_target: '', paralyzing_target: '', scared: false,
+                   last_turn_anti_spelled: -1, remaining_protection_turns: 0)
       @left_hand = left_hand
       @right_hand = right_hand
       @health = health
@@ -27,6 +28,7 @@ module SpellbinderRules
       @paralyzing_target = paralyzing_target
       @scared = scared
       @last_turn_anti_spelled = last_turn_anti_spelled
+      @remaining_protection_turns = remaining_protection_turns
     end
 
     def ==(other)
@@ -37,7 +39,8 @@ module SpellbinderRules
                                    && charming_target == other.charming_target \
                                    && paralyzing_target == other.paralyzing_target \
                                    && scared? == other.scared? \
-                                   && last_turn_anti_spelled == other.last_turn_anti_spelled
+                                   && last_turn_anti_spelled == other.last_turn_anti_spelled \
+                                   && remaining_protection_turns == other.remaining_protection_turns
     end
   end
 
@@ -127,6 +130,7 @@ module SpellbinderRules
                SingleHandSpellInfo.new('WFP', :cause_light_wounds, :default_other),
                SingleHandSpellInfo.new('DPP', :amnesia, :default_other),
                SingleHandSpellInfo.new('SPFP', :anti_spell, :default_other),
+               SingleHandSpellInfo.new('WWP', :protection, :default_self),
                SingleHandSpellInfo.new('P', :shield, :default_self),
                SingleHandSpellInfo.new('PSDF', :charm_person, :default_other),
                SingleHandSpellInfo.new('FFF', :paralysis, :default_other),
@@ -220,18 +224,24 @@ module SpellbinderRules
         log.push(ColoredText.new('yellow', "#{target.battle_state.player_name}'s right hand is paralyzed."))
       end
 
-      next unless mid_state.battle_state.scared?
+      if mid_state.battle_state.scared?
+        mid_state.battle_state.orders.left_gesture = FEAR_GESTURE_CONVERSIONS[mid_state.battle_state.orders.left_gesture]
+        mid_state.battle_state.left_hand[-1] = mid_state.battle_state.orders.left_gesture
 
-      mid_state.battle_state.orders.left_gesture = FEAR_GESTURE_CONVERSIONS[mid_state.battle_state.orders.left_gesture]
-      mid_state.battle_state.left_hand[-1] = mid_state.battle_state.orders.left_gesture
+        mid_state.battle_state.orders.right_gesture = FEAR_GESTURE_CONVERSIONS[mid_state.battle_state.orders.right_gesture]
+        mid_state.battle_state.right_hand[-1] = mid_state.battle_state.orders.right_gesture
 
-      mid_state.battle_state.orders.right_gesture = FEAR_GESTURE_CONVERSIONS[mid_state.battle_state.orders.right_gesture]
-      mid_state.battle_state.right_hand[-1] = mid_state.battle_state.orders.right_gesture
+        mid_state.battle_state.scared = false
 
-      mid_state.battle_state.scared = false
+        log.push(ColoredText.new('yellow',
+                                 "#{mid_state.battle_state.player_name}, out of fear, fails to make a C, D, F, or S."))
+      end
 
-      log.push(ColoredText.new('yellow',
-                               "#{mid_state.battle_state.player_name}, out of fear, fails to make a C, D, F, or S."))
+      if mid_state.battle_state.remaining_protection_turns > 0
+        mid_state.shielded = true
+
+        mid_state.battle_state.remaining_protection_turns -= 1
+      end
     end
 
     # Determine which spells are being cast and at whom
@@ -264,7 +274,7 @@ module SpellbinderRules
       end
     end
 
-    # Evaluate shield spell first
+    # Evaluate shield spells first
     spells_to_cast.each do |spell_order|
       mid_state = spell_order.caster
 
@@ -273,9 +283,23 @@ module SpellbinderRules
         target = spell_order.target
 
         target.shielded = true
+      when :protection
+        target = spell_order.target
 
+        target.shielded = true
+
+        target.battle_state.remaining_protection_turns = 2
+      end
+    end
+
+    # Log shield display as necessary
+    next_states.each do |mid_state|
+      if mid_state.shielded? && mid_state.battle_state.remaining_protection_turns == 2
         log.push(ColoredText.new('light-blue',
-                                 "#{mid_state.battle_state.player_name} is covered in a shimmering shield."))
+                 "#{mid_state.battle_state.player_name} is covered in a thick shimmering shield."))
+      elsif mid_state.shielded?
+        log.push(ColoredText.new('light-blue',
+                 "#{mid_state.battle_state.player_name} is covered in a shimmering shield."))
       end
     end
 
