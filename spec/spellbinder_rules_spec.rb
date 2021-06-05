@@ -597,7 +597,8 @@ describe SpellbinderRules do
       initial_battle_states_3[1].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '>')
 
       expected_battle_states_3 = [BattleState.new(left_hand: 'WWP--', right_hand: '-----', health: 15, player_name: 'first@example.com', remaining_protection_turns: 0),
-                                  BattleState.new(left_hand: '-----', right_hand: '-->>>', health: 15, player_name: 'second@example.com')]
+                                  BattleState.new(left_hand: '-----', right_hand: '-->>>', health: 15,
+                                                  player_name: 'second@example.com')]
 
       expected_log_3 = [ColoredText.new('green',
                                         'second@example.com stabs at first@example.com.'),
@@ -616,7 +617,8 @@ describe SpellbinderRules do
       initial_battle_states_4[1].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '>')
 
       expected_battle_states_4 = [BattleState.new(left_hand: 'WWP---', right_hand: '------', health: 14, player_name: 'first@example.com', remaining_protection_turns: 0),
-                                  BattleState.new(left_hand: '------', right_hand: '-->>>>', health: 15, player_name: 'second@example.com')]
+                                  BattleState.new(left_hand: '------', right_hand: '-->>>>', health: 15,
+                                                  player_name: 'second@example.com')]
 
       expected_log_4 = [ColoredText.new('green',
                                         'second@example.com stabs at first@example.com.'),
@@ -627,6 +629,73 @@ describe SpellbinderRules do
 
       expect(result_4[:log]).to eq(expected_log_4)
       expect(result_4[:next_states]).to eq(expected_battle_states_4)
+    end
+  end
+
+  describe 'Casting "Disease"' do
+    it 'kills the target warlock at the end of the 6th turn following the one in which it was cast' do
+      initial_battle_states = [BattleState.new(left_hand: 'DSFFF',
+                                               right_hand: '-----', player_name: 'first@example.com',
+                                               orders: PlayerOrders.new(left_gesture: 'C', right_gesture: 'C')),
+                               BattleState.new(left_hand: '-----',
+                                               right_hand: '-----', player_name: 'second@example.com',
+                                               orders: PlayerOrders.new(left_gesture: '-', right_gesture: '-'))]
+
+      expected_battle_states = [BattleState.new(left_hand: 'DSFFFC', right_hand: '-----C', health: 15, player_name: 'first@example.com'),
+                                BattleState.new(left_hand: '------', right_hand: '------', health: 15,
+                                                player_name: 'second@example.com', remaining_disease_turns: 6)]
+
+      expected_log = [ColoredText.new('green',
+                                      'first@example.com casts Disease on second@example.com.'),
+                      ColoredText.new('red',
+                                      'second@example.com starts to look sick.')]
+
+      result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+      expect(result[:log]).to eq(expected_log)
+      expect(result[:next_states]).to eq(expected_battle_states)
+
+      repetitive_orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
+
+      initial_battle_states_2 = expected_battle_states.dup
+      initial_battle_states_2[0].orders = repetitive_orders
+      initial_battle_states_2[1].orders = repetitive_orders
+
+      expected_battle_states_2 = [BattleState.new(left_hand: 'DSFFFC-', right_hand: '-----C-', health: 15, player_name: 'first@example.com'),
+                                  BattleState.new(left_hand: '-------', right_hand: '-------', health: 15,
+                                                  player_name: 'second@example.com', remaining_disease_turns: 5)]
+
+      expected_log_2 = [ColoredText.new('red',
+                                        'second@example.com is a bit nauseous.')]
+
+      result_2 = SpellbinderRules.calc_next_turn(initial_battle_states_2)
+
+      expect(result_2[:log]).to eq(expected_log_2)
+      expect(result_2[:next_states]).to eq(expected_battle_states_2)
+
+      changing_state = expected_battle_states_2.dup
+      resulting_log = []
+      3.upto(7) do |n|
+        changing_state[0].orders = repetitive_orders
+        changing_state[1].orders = repetitive_orders
+
+        result_n = SpellbinderRules.calc_next_turn(changing_state)
+
+        changing_state = result_n[:next_states]
+        resulting_log = result_n[:log]
+
+        expect(result_n[:next_states][1].remaining_disease_turns).to eq(7 - n)
+      end
+
+      expected_battle_states_final = [BattleState.new(left_hand: 'DSFFFC------', right_hand: '-----C------', health: 15, player_name: 'first@example.com'),
+                                      BattleState.new(left_hand: '------------', right_hand: '------------',
+                                                      health: -1, player_name: 'second@example.com', remaining_disease_turns: 0)]
+
+      expected_log_final = [ColoredText.new('red', 'second@example.com is on the verge of death.'),
+                            ColoredText.new('red', 'second@example.com keels over and dies of illness.')]
+
+      expect(resulting_log).to eq(expected_log_final)
+      expect(changing_state).to eq(expected_battle_states_final)
     end
   end
 

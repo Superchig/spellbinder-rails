@@ -8,7 +8,7 @@ module SpellbinderRules
 
   class BattleState
     attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :amnesia, :confused, :charming_target,
-                  :paralyzing_target, :scared, :last_turn_anti_spelled, :remaining_protection_turns
+                  :paralyzing_target, :scared, :last_turn_anti_spelled, :remaining_protection_turns, :remaining_disease_turns
 
     alias amnesia? amnesia
     alias confused? confused
@@ -16,7 +16,7 @@ module SpellbinderRules
 
     def initialize(left_hand: '', right_hand: '', health: 15, player_name: '', orders: PlayerOrders.new,
                    amnesia: false, confused: false, charming_target: '', paralyzing_target: '', scared: false,
-                   last_turn_anti_spelled: -1, remaining_protection_turns: 0)
+                   last_turn_anti_spelled: -1, remaining_protection_turns: 0, remaining_disease_turns: -1)
       @left_hand = left_hand
       @right_hand = right_hand
       @health = health
@@ -29,6 +29,7 @@ module SpellbinderRules
       @scared = scared
       @last_turn_anti_spelled = last_turn_anti_spelled
       @remaining_protection_turns = remaining_protection_turns
+      @remaining_disease_turns = remaining_disease_turns
     end
 
     def ==(other)
@@ -40,7 +41,8 @@ module SpellbinderRules
                                    && paralyzing_target == other.paralyzing_target \
                                    && scared? == other.scared? \
                                    && last_turn_anti_spelled == other.last_turn_anti_spelled \
-                                   && remaining_protection_turns == other.remaining_protection_turns
+                                   && remaining_protection_turns == other.remaining_protection_turns \
+                                   && remaining_disease_turns == other.remaining_disease_turns
     end
   end
 
@@ -148,7 +150,8 @@ module SpellbinderRules
       mid_state = MidBattleState.new(underlying_state)
     end
 
-    # Handle enchantment effects which mess with gestures
+    # Handle enchantment effects which mess with gestures/change other enchantment
+    # effect state
     next_states.each do |mid_state|
       if mid_state.battle_state.amnesia?
         new_left_gesture = mid_state.battle_state.left_hand[-2]
@@ -239,8 +242,27 @@ module SpellbinderRules
 
       if mid_state.battle_state.remaining_protection_turns > 0
         mid_state.shielded = true
-
         mid_state.battle_state.remaining_protection_turns -= 1
+      end
+
+      # -1 is the "no disease" value
+      next unless mid_state.battle_state.remaining_disease_turns > -1
+
+      mid_state.battle_state.remaining_disease_turns -= 1
+
+      case mid_state.battle_state.remaining_disease_turns
+      when 5
+        log.push(ColoredText.new('red', "#{mid_state.battle_state.player_name} is a bit nauseous."))
+      when 4
+        log.push(ColoredText.new('red', "#{mid_state.battle_state.player_name} is looking pale.."))
+      when 3
+        log.push(ColoredText.new('red', "#{mid_state.battle_state.player_name} is having difficulty breathing.."))
+      when 2
+        log.push(ColoredText.new('red', "#{mid_state.battle_state.player_name} is sweating feverishly."))
+      when 1
+        log.push(ColoredText.new('red', "#{mid_state.battle_state.player_name} staggers weakly."))
+      when 0
+        log.push(ColoredText.new('red', "#{mid_state.battle_state.player_name} is on the verge of death."))
       end
     end
 
@@ -248,6 +270,8 @@ module SpellbinderRules
     spells_to_cast = next_states.map do |mid_state|
       if both_hands_end_with?(mid_state.battle_state, 'P')
         SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states))
+      elsif double_ends_with?(mid_state.battle_state, 'DSFFF', 'C')
+        SpellOrder.new(:disease, mid_state, find_other_warlock(mid_state, next_states))
       else
         left_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: true)
         right_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: false)
@@ -296,10 +320,10 @@ module SpellbinderRules
     next_states.each do |mid_state|
       if mid_state.shielded? && mid_state.battle_state.remaining_protection_turns == 2
         log.push(ColoredText.new('light-blue',
-                 "#{mid_state.battle_state.player_name} is covered in a thick shimmering shield."))
+                                 "#{mid_state.battle_state.player_name} is covered in a thick shimmering shield."))
       elsif mid_state.shielded?
         log.push(ColoredText.new('light-blue',
-                 "#{mid_state.battle_state.player_name} is covered in a shimmering shield."))
+                                 "#{mid_state.battle_state.player_name} is covered in a shimmering shield."))
       end
     end
 
@@ -354,7 +378,19 @@ module SpellbinderRules
         log.push(ColoredText.new('yellow', "#{target.battle_state.player_name} looks scared."))
       when :anti_spell
         target.battle_state.last_turn_anti_spelled = target.battle_state.left_hand.size - 1
+      when :disease
+        target.battle_state.remaining_disease_turns = 6
+
+        log.push(ColoredText.new('red', "#{target.battle_state.player_name} starts to look sick."))
       end
+    end
+
+    next_states.each do |mid_state|
+      next unless mid_state.battle_state.remaining_disease_turns == 0
+
+      log.push(ColoredText.new('red', "#{mid_state.battle_state.player_name} keels over and dies of illness."))
+
+      mid_state.battle_state.health = -1
     end
 
     next_states.each do |mid_state|
@@ -426,5 +462,12 @@ module SpellbinderRules
   def self.viable_gestures(battle_state, left_hand: true)
     hand = left_hand ? battle_state.left_hand : battle_state.right_hand
     hand[battle_state.last_turn_anti_spelled + 1..hand.size]
+  end
+
+  def self.double_ends_with?(battle_state, single_ending, double_ending)
+    left_hand = viable_gestures(battle_state, left_hand: true)
+    right_hand = viable_gestures(battle_state, left_hand: false)
+    left_hand.end_with?(double_ending) && right_hand.end_with?(double_ending) \
+      && (left_hand[0..left_hand.size - 1 - double_ending.size].end_with?(single_ending) || right_hand[0..right_hand.size - 1 - double_ending.size].end_with?(single_ending))
   end
 end
