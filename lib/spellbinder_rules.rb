@@ -8,7 +8,8 @@ module SpellbinderRules
 
   class BattleState
     attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :amnesia, :confused, :charming_target,
-                  :paralyzing_target, :scared, :last_turn_anti_spelled, :remaining_protection_turns, :remaining_disease_turns
+                  :paralyzing_target, :scared, :last_turn_anti_spelled, :remaining_protection_turns, :remaining_disease_turns,
+                  :remaining_blindness_turns
 
     alias amnesia? amnesia
     alias confused? confused
@@ -16,7 +17,7 @@ module SpellbinderRules
 
     def initialize(left_hand: '', right_hand: '', health: 15, player_name: '', orders: PlayerOrders.new,
                    amnesia: false, confused: false, charming_target: '', paralyzing_target: '', scared: false,
-                   last_turn_anti_spelled: -1, remaining_protection_turns: 0, remaining_disease_turns: -1)
+                   last_turn_anti_spelled: -1, remaining_protection_turns: 0, remaining_disease_turns: -1, remaining_blindness_turns: 0)
       @left_hand = left_hand
       @right_hand = right_hand
       @health = health
@@ -30,6 +31,7 @@ module SpellbinderRules
       @last_turn_anti_spelled = last_turn_anti_spelled
       @remaining_protection_turns = remaining_protection_turns
       @remaining_disease_turns = remaining_disease_turns
+      @remaining_blindness_turns = remaining_blindness_turns
     end
 
     def ==(other)
@@ -42,7 +44,8 @@ module SpellbinderRules
                                    && scared? == other.scared? \
                                    && last_turn_anti_spelled == other.last_turn_anti_spelled \
                                    && remaining_protection_turns == other.remaining_protection_turns \
-                                   && remaining_disease_turns == other.remaining_disease_turns
+                                   && remaining_disease_turns == other.remaining_disease_turns \
+                                   && remaining_blindness_turns == other.remaining_blindness_turns
     end
   end
 
@@ -272,6 +275,8 @@ module SpellbinderRules
         SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states))
       elsif double_ends_with?(mid_state.battle_state, 'DSFFF', 'C')
         SpellOrder.new(:disease, mid_state, find_other_warlock(mid_state, next_states))
+      elsif double_ends_with?(mid_state.battle_state, 'DWFF', 'D')
+        SpellOrder.new(:blindness, mid_state, find_other_warlock(mid_state, next_states))
       else
         left_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: true)
         right_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: false)
@@ -382,6 +387,10 @@ module SpellbinderRules
         target.battle_state.remaining_disease_turns = 6
 
         log.push(ColoredText.new('red', "#{target.battle_state.player_name} starts to look sick."))
+      when :blindness
+        target.battle_state.remaining_blindness_turns = 3
+
+        log.push(ColoredText.new('yellow', "#{target.battle_state.player_name}'s sight begins to dim."))
       end
     end
 

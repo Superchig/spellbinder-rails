@@ -699,6 +699,31 @@ describe SpellbinderRules do
     end
   end
 
+  describe 'Casting "Blindness"' do
+    it 'prevents the target warlock from seeing the other warlock\'s gestures or directing his spells at them for the next 3 turns' do
+      initial_battle_states = [BattleState.new(left_hand: 'DWFF',
+                                               right_hand: '----', player_name: 'first@example.com',
+                                               orders: PlayerOrders.new(left_gesture: 'D', right_gesture: 'D')),
+                               BattleState.new(left_hand: '----',
+                                               right_hand: '----', player_name: 'second@example.com',
+                                               orders: PlayerOrders.new(left_gesture: '-', right_gesture: '-'))]
+
+      expected_battle_states = [BattleState.new(left_hand: 'DWFFD', right_hand: '----D', health: 15, player_name: 'first@example.com'),
+                                BattleState.new(left_hand: '-----', right_hand: '-----', health: 15,
+                                                player_name: 'second@example.com', remaining_blindness_turns: 3)]
+
+      expected_log = [ColoredText.new('green',
+                                      'first@example.com casts Blindness on second@example.com.'),
+                      ColoredText.new('yellow',
+                                      'second@example.com\'s sight begins to dim.')]
+
+      result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+      expect(result[:log]).to eq(expected_log)
+      expect(result[:next_states]).to eq(expected_battle_states)
+    end
+  end
+
   describe '.random_gesture' do
     it 'can be mocked (stubbed?) correctly' do
       allow(SpellbinderRules).to receive(:random_gesture) { 'P' }
