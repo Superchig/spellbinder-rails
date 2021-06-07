@@ -274,13 +274,34 @@ module SpellbinderRules
       end
     end
 
+    # Update views of other hands
+    [[0, 1], [1, 0]].each do |pair|
+      mid_state = next_states[pair[0]]
+      other_state = next_states[pair[1]]
+
+      if mid_state.player_state.remaining_blindness_turns > 0
+        mid_state.player_state.other_view_left_hand << '?'
+        mid_state.player_state.other_view_right_hand << '?'
+
+        mid_state.player_state.remaining_blindness_turns -= 1
+
+        if mid_state.player_state.remaining_blindness_turns <= 0
+          log.push(ColoredText.new('dark-blue', "#{mid_state.player_state.player_name}'s eyes begin working again."))
+        end
+      else
+        mid_state.player_state.other_view_left_hand << other_state.player_state.orders.left_gesture
+        mid_state.player_state.other_view_right_hand << other_state.player_state.orders.right_gesture
+      end
+    end
+
     # Determine which spells are being cast and at whom
     spells_to_cast = next_states.map do |mid_state|
       if both_hands_end_with?(mid_state.player_state, 'P')
         SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states))
       elsif double_ends_with?(mid_state.player_state, 'DSFFF', 'C')
         SpellOrder.new(:disease, mid_state, find_other_warlock(mid_state, next_states))
-      elsif double_ends_with?(mid_state.player_state, 'DWFF', 'D')
+      elsif double_ends_with?(mid_state.player_state, 'DWFF', 'D') ||
+            double_ends_with?(mid_state.player_state, 'DFWF', 'D')
         SpellOrder.new(:blindness, mid_state, find_other_warlock(mid_state, next_states))
       else
         left_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: true)
@@ -294,19 +315,31 @@ module SpellbinderRules
       mid_state = spell_order.caster
       target = spell_order.target
 
-      case spell_order.spell
-      when :surrender
-        # Nothing happens here
-      when :stab
-        log.push(ColoredText.new('green',
-                                 "#{mid_state.player_state.player_name} stabs at #{display_target(mid_state,
-                                                                                                  target)}."))
-      else
-        log.push(ColoredText.new('green',
-                                 "#{mid_state.player_state.player_name} casts #{find_spell_name(spell_order.spell)} on #{display_target(mid_state,
-                                                                                                                                        target)}."))
-      end
+      cast_output = case spell_order.spell
+                    when :surrender
+                    # Nothing happens here
+                    when :stab
+                      ColoredText.new('green',
+                                      "#{mid_state.player_state.player_name} stabs at #{display_target(mid_state,
+                                                                                                       target)}")
+                    else
+                      ColoredText.new('green',
+                                      "#{mid_state.player_state.player_name} casts #{find_spell_name(spell_order.spell)} on #{display_target(mid_state,
+                                                                                                                                             target)}")
+                    end
+
+      next if cast_output.nil?
+
+      cast_output.text << if misses_from_blindness?(spell_order)
+                            ', but misses due to blindness.'
+                          else
+                            '.'
+                          end
+
+      log.push(cast_output)
     end
+
+    spells_to_cast.reject! { |sp| misses_from_blindness?(sp) }
 
     # Evaluate shield spells first
     spells_to_cast.each do |spell_order|
@@ -407,11 +440,6 @@ module SpellbinderRules
       mid_state.player_state.health = -1
     end
 
-    next_states[0].player_state.other_view_left_hand << next_states[1].player_state.orders.left_gesture
-    next_states[0].player_state.other_view_right_hand << next_states[1].player_state.orders.right_gesture
-    next_states[1].player_state.other_view_left_hand << next_states[0].player_state.orders.left_gesture
-    next_states[1].player_state.other_view_right_hand << next_states[0].player_state.orders.right_gesture
-
     next_states.each do |mid_state|
       mid_state.player_state.orders = PlayerOrders.new
     end
@@ -490,10 +518,15 @@ module SpellbinderRules
       && (left_hand[0..left_hand.size - 1 - double_ending.size].end_with?(single_ending) || right_hand[0..right_hand.size - 1 - double_ending.size].end_with?(single_ending))
   end
 
+  # Useful in testing: this helps you quickly build initial PlayerState hand views
   def self.copy_init_views(player_states)
     player_states[0].other_view_left_hand = player_states[1].left_hand
     player_states[0].other_view_right_hand = player_states[1].right_hand
     player_states[1].other_view_left_hand = player_states[0].left_hand
     player_states[1].other_view_right_hand = player_states[0].right_hand
+  end
+
+  def self.misses_from_blindness?(spell_order)
+    spell_order.caster.player_state.remaining_blindness_turns > 0 && spell_order.target != spell_order.caster
   end
 end

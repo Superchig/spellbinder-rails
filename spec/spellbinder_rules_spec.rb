@@ -785,7 +785,7 @@ describe SpellbinderRules do
   end
 
   describe 'Casting "Blindness"' do
-    it 'prevents the target warlock from seeing the other warlock\'s gestures or directing his spells at them for the next 3 turns' do
+    it 'prevents the target warlock from seeing the other warlock\'s gestures or targeting them for the next 3 turns' do
       initial_battle_states = [PlayerState.new(left_hand: 'DWFF',
                                                right_hand: '----', player_name: 'first@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'D', right_gesture: 'D')),
@@ -809,6 +809,60 @@ describe SpellbinderRules do
 
       expect(result[:log]).to eq(expected_log)
       expect(result[:next_states]).to eq(expected_battle_states)
+
+      initial_battle_states_2 = expected_battle_states.dup
+      initial_battle_states_2[0].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
+      initial_battle_states_2[1].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '>')
+
+      SpellbinderRules.copy_init_views(initial_battle_states_2)
+
+      expected_battle_states_2 = [PlayerState.new(left_hand: 'DWFFD-', right_hand: '----D-', health: 15, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: '------', right_hand: '----->', health: 15,
+                                                  player_name: 'second@example.com', remaining_blindness_turns: 2)]
+      expected_battle_states_2[0].other_view_left_hand = expected_battle_states[1].left_hand
+      expected_battle_states_2[0].other_view_right_hand = expected_battle_states[1].right_hand
+      expected_battle_states_2[1].other_view_left_hand = 'DWFFD?'
+      expected_battle_states_2[1].other_view_right_hand = '----D?'
+
+      expected_log_2 = [ColoredText.new('green',
+                                        'second@example.com stabs at first@example.com, but misses due to blindness.')]
+
+      result_2 = SpellbinderRules.calc_next_turn(initial_battle_states_2)
+
+      expect(result_2[:log]).to eq(expected_log_2)
+      expect(result_2[:next_states][0]).to eq(expected_battle_states_2[0])
+      expect(result_2[:next_states][1]).to eq(expected_battle_states_2[1])
+      expect(result_2[:next_states]).to eq(expected_battle_states_2)
+
+      changing_state = expected_battle_states_2.dup
+      resulting_log = ''
+      3.upto(4) do |n|
+        changing_state[0].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
+        changing_state[1].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
+
+        result_n = SpellbinderRules.calc_next_turn(changing_state)
+
+        resulting_log = result_n[:log]
+
+        expect(result_n[:next_states][1].left_hand).to eq(changing_state[1].left_hand + '-')
+        expect(result_n[:next_states][1].remaining_blindness_turns).to eq(4 - n)
+
+        changing_state = result_n[:next_states]
+      end
+
+      expected_battle_states_final = [PlayerState.new(left_hand: 'DWFFD---', right_hand: '----D---', health: 15, player_name: 'first@example.com'),
+                                      PlayerState.new(left_hand: '--------', right_hand: '----->--', health: 15,
+                                                      player_name: 'second@example.com')]
+      expected_battle_states_final[0].other_view_left_hand = expected_battle_states_final[1].left_hand
+      expected_battle_states_final[0].other_view_right_hand = expected_battle_states_final[1].right_hand
+      expected_battle_states_final[1].other_view_left_hand = 'DWFFD???'
+      expected_battle_states_final[1].other_view_right_hand = '----D???'
+
+      expected_log_final = [ColoredText.new('dark-blue', "second@example.com's eyes begin working again.")]
+
+      expect(resulting_log).to eq(expected_log_final)
+      expect(changing_state[0]).to eq(expected_battle_states_final[0])
+      expect(changing_state[1]).to eq(expected_battle_states_final[1])
     end
   end
 
