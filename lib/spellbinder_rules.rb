@@ -6,7 +6,7 @@ module SpellbinderRules
   FEAR_GESTURE_CONVERSIONS = { 'C' => '-', 'D' => '-', 'F' => '-', 'S' => '-',
                                'W' => 'W', 'P' => 'P', '>' => '>', '-' => '-' }
 
-  class BattleState
+  class PlayerState
     attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :amnesia, :confused, :charming_target,
                   :paralyzing_target, :scared, :last_turn_anti_spelled, :remaining_protection_turns, :remaining_disease_turns,
                   :remaining_blindness_turns
@@ -51,12 +51,12 @@ module SpellbinderRules
 
   # Holds temporary data for the middle of battle, which won't need to be stored
   # afterwards
-  class MidBattleState
-    attr_accessor :battle_state, :shielded
+  class MidPlayerState
+    attr_accessor :player_state, :shielded
     alias shielded? shielded
 
-    def initialize(battle_state)
-      @battle_state = battle_state
+    def initialize(player_state)
+      @player_state = player_state
       @shielded = false
     end
   end
@@ -143,139 +143,139 @@ module SpellbinderRules
                SingleHandSpellInfo.new('SWD', :fear, :default_other)]
   end
 
-  def self.calc_next_turn(battle_states)
+  def self.calc_next_turn(player_states)
     log = []
-    next_states = battle_states.map do |battle_state|
-      underlying_state = battle_state.dup
-      underlying_state.left_hand += battle_state.orders.left_gesture
-      underlying_state.right_hand += battle_state.orders.right_gesture
+    next_states = player_states.map do |player_state|
+      underlying_state = player_state.dup
+      underlying_state.left_hand += player_state.orders.left_gesture
+      underlying_state.right_hand += player_state.orders.right_gesture
 
-      mid_state = MidBattleState.new(underlying_state)
+      mid_state = MidPlayerState.new(underlying_state)
     end
 
     # Handle enchantment effects which mess with gestures/change other enchantment
     # effect state
     next_states.each do |mid_state|
-      if mid_state.battle_state.amnesia?
-        new_left_gesture = mid_state.battle_state.left_hand[-2]
-        new_right_gesture = mid_state.battle_state.right_hand[-2]
+      if mid_state.player_state.amnesia?
+        new_left_gesture = mid_state.player_state.left_hand[-2]
+        new_right_gesture = mid_state.player_state.right_hand[-2]
 
-        mid_state.battle_state.left_hand[-1] = new_left_gesture
-        mid_state.battle_state.right_hand[-1] = new_right_gesture
+        mid_state.player_state.left_hand[-1] = new_left_gesture
+        mid_state.player_state.right_hand[-1] = new_right_gesture
 
-        mid_state.battle_state.orders.left_gesture = new_left_gesture
-        mid_state.battle_state.orders.right_gesture = new_right_gesture
+        mid_state.player_state.orders.left_gesture = new_left_gesture
+        mid_state.player_state.orders.right_gesture = new_right_gesture
 
-        mid_state.battle_state.amnesia = false
+        mid_state.player_state.amnesia = false
 
         log.push(ColoredText.new('yellow',
-                                 "#{mid_state.battle_state.player_name} forgets what he's doing, and makes the same gestures as last round!"))
+                                 "#{mid_state.player_state.player_name} forgets what he's doing, and makes the same gestures as last round!"))
       end
 
-      if mid_state.battle_state.confused?
+      if mid_state.player_state.confused?
         if random_hand == :left
           gesture = random_gesture
-          mid_state.battle_state.left_hand[-1] = gesture
-          mid_state.battle_state.orders.left_gesture = gesture
+          mid_state.player_state.left_hand[-1] = gesture
+          mid_state.player_state.orders.left_gesture = gesture
 
           log.push(ColoredText.new('yellow',
-                                   "#{mid_state.battle_state.player_name}, in their confusion, makes the wrong gesture with their left hand."))
+                                   "#{mid_state.player_state.player_name}, in their confusion, makes the wrong gesture with their left hand."))
         else
           gesture = random_gesture
-          mid_state.battle_state.right_hand[-1] = gesture
-          mid_state.battle_state.orders.right_gesture = gesture
+          mid_state.player_state.right_hand[-1] = gesture
+          mid_state.player_state.orders.right_gesture = gesture
 
           log.push(ColoredText.new('yellow',
-                                   "#{mid_state.battle_state.player_name}, in their confusion, makes the wrong gesture with their right hand."))
+                                   "#{mid_state.player_state.player_name}, in their confusion, makes the wrong gesture with their right hand."))
         end
       end
 
-      unless mid_state.battle_state.orders.override_gesture.nil?
-        override_gesture = mid_state.battle_state.orders.override_gesture
+      unless mid_state.player_state.orders.override_gesture.nil?
+        override_gesture = mid_state.player_state.orders.override_gesture
         hand_name = override_gesture.left_hand? ? 'left' : 'right'
 
         target = find_state_by_name(next_states, override_gesture.target_name)
         if override_gesture.left_hand?
-          target.battle_state.orders.left_gesture = override_gesture.gesture
-          target.battle_state.left_hand[-1] = override_gesture.gesture
+          target.player_state.orders.left_gesture = override_gesture.gesture
+          target.player_state.left_hand[-1] = override_gesture.gesture
         else
-          target.battle_state.orders.right_gesture = override_gesture.gesture
-          target.battle_state.right_hand[-1] = override_gesture.gesture
+          target.player_state.orders.right_gesture = override_gesture.gesture
+          target.player_state.right_hand[-1] = override_gesture.gesture
         end
 
-        mid_state.battle_state.charming_target = ''
+        mid_state.player_state.charming_target = ''
 
         log.push(ColoredText.new('yellow',
                                  "#{override_gesture.target_name} is charmed into making the wrong gesture with his #{hand_name} hand."))
       end
 
-      case mid_state.battle_state.orders.paralyze_target_hand
+      case mid_state.player_state.orders.paralyze_target_hand
       when :left
-        target = find_state_by_name(next_states, mid_state.battle_state.paralyzing_target)
-        paralyze_gesture = PARALYZE_GESTURE_CONVERSIONS[target.battle_state.left_hand[-2]]
-        target.battle_state.left_hand[-1] = paralyze_gesture
-        target.battle_state.orders.left_gesture = paralyze_gesture
+        target = find_state_by_name(next_states, mid_state.player_state.paralyzing_target)
+        paralyze_gesture = PARALYZE_GESTURE_CONVERSIONS[target.player_state.left_hand[-2]]
+        target.player_state.left_hand[-1] = paralyze_gesture
+        target.player_state.orders.left_gesture = paralyze_gesture
 
-        mid_state.battle_state.paralyzing_target = ''
+        mid_state.player_state.paralyzing_target = ''
 
-        log.push(ColoredText.new('yellow', "#{target.battle_state.player_name}'s left hand is paralyzed."))
+        log.push(ColoredText.new('yellow', "#{target.player_state.player_name}'s left hand is paralyzed."))
       when :right
-        target = find_state_by_name(next_states, mid_state.battle_state.paralyzing_target)
-        paralyze_gesture = PARALYZE_GESTURE_CONVERSIONS[target.battle_state.right_hand[-2]]
-        target.battle_state.right_hand[-1] = paralyze_gesture
-        target.battle_state.orders.right_gesture = paralyze_gesture
+        target = find_state_by_name(next_states, mid_state.player_state.paralyzing_target)
+        paralyze_gesture = PARALYZE_GESTURE_CONVERSIONS[target.player_state.right_hand[-2]]
+        target.player_state.right_hand[-1] = paralyze_gesture
+        target.player_state.orders.right_gesture = paralyze_gesture
 
-        mid_state.battle_state.paralyzing_target = ''
+        mid_state.player_state.paralyzing_target = ''
 
-        log.push(ColoredText.new('yellow', "#{target.battle_state.player_name}'s right hand is paralyzed."))
+        log.push(ColoredText.new('yellow', "#{target.player_state.player_name}'s right hand is paralyzed."))
       end
 
-      if mid_state.battle_state.scared?
-        mid_state.battle_state.orders.left_gesture = FEAR_GESTURE_CONVERSIONS[mid_state.battle_state.orders.left_gesture]
-        mid_state.battle_state.left_hand[-1] = mid_state.battle_state.orders.left_gesture
+      if mid_state.player_state.scared?
+        mid_state.player_state.orders.left_gesture = FEAR_GESTURE_CONVERSIONS[mid_state.player_state.orders.left_gesture]
+        mid_state.player_state.left_hand[-1] = mid_state.player_state.orders.left_gesture
 
-        mid_state.battle_state.orders.right_gesture = FEAR_GESTURE_CONVERSIONS[mid_state.battle_state.orders.right_gesture]
-        mid_state.battle_state.right_hand[-1] = mid_state.battle_state.orders.right_gesture
+        mid_state.player_state.orders.right_gesture = FEAR_GESTURE_CONVERSIONS[mid_state.player_state.orders.right_gesture]
+        mid_state.player_state.right_hand[-1] = mid_state.player_state.orders.right_gesture
 
-        mid_state.battle_state.scared = false
+        mid_state.player_state.scared = false
 
         log.push(ColoredText.new('yellow',
-                                 "#{mid_state.battle_state.player_name}, out of fear, fails to make a C, D, F, or S."))
+                                 "#{mid_state.player_state.player_name}, out of fear, fails to make a C, D, F, or S."))
       end
 
-      if mid_state.battle_state.remaining_protection_turns > 0
+      if mid_state.player_state.remaining_protection_turns > 0
         mid_state.shielded = true
-        mid_state.battle_state.remaining_protection_turns -= 1
+        mid_state.player_state.remaining_protection_turns -= 1
       end
 
       # -1 is the "no disease" value
-      next unless mid_state.battle_state.remaining_disease_turns > -1
+      next unless mid_state.player_state.remaining_disease_turns > -1
 
-      mid_state.battle_state.remaining_disease_turns -= 1
+      mid_state.player_state.remaining_disease_turns -= 1
 
-      case mid_state.battle_state.remaining_disease_turns
+      case mid_state.player_state.remaining_disease_turns
       when 5
-        log.push(ColoredText.new('red', "#{mid_state.battle_state.player_name} is a bit nauseous."))
+        log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} is a bit nauseous."))
       when 4
-        log.push(ColoredText.new('red', "#{mid_state.battle_state.player_name} is looking pale.."))
+        log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} is looking pale.."))
       when 3
-        log.push(ColoredText.new('red', "#{mid_state.battle_state.player_name} is having difficulty breathing.."))
+        log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} is having difficulty breathing.."))
       when 2
-        log.push(ColoredText.new('red', "#{mid_state.battle_state.player_name} is sweating feverishly."))
+        log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} is sweating feverishly."))
       when 1
-        log.push(ColoredText.new('red', "#{mid_state.battle_state.player_name} staggers weakly."))
+        log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} staggers weakly."))
       when 0
-        log.push(ColoredText.new('red', "#{mid_state.battle_state.player_name} is on the verge of death."))
+        log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} is on the verge of death."))
       end
     end
 
     # Determine which spells are being cast and at whom
     spells_to_cast = next_states.map do |mid_state|
-      if both_hands_end_with?(mid_state.battle_state, 'P')
+      if both_hands_end_with?(mid_state.player_state, 'P')
         SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states))
-      elsif double_ends_with?(mid_state.battle_state, 'DSFFF', 'C')
+      elsif double_ends_with?(mid_state.player_state, 'DSFFF', 'C')
         SpellOrder.new(:disease, mid_state, find_other_warlock(mid_state, next_states))
-      elsif double_ends_with?(mid_state.battle_state, 'DWFF', 'D')
+      elsif double_ends_with?(mid_state.player_state, 'DWFF', 'D')
         SpellOrder.new(:blindness, mid_state, find_other_warlock(mid_state, next_states))
       else
         left_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: true)
@@ -294,11 +294,11 @@ module SpellbinderRules
         # Nothing happens here
       when :stab
         log.push(ColoredText.new('green',
-                                 "#{mid_state.battle_state.player_name} stabs at #{display_target(mid_state,
+                                 "#{mid_state.player_state.player_name} stabs at #{display_target(mid_state,
                                                                                                   target)}."))
       else
         log.push(ColoredText.new('green',
-                                 "#{mid_state.battle_state.player_name} casts #{find_spell_name(spell_order.spell)} on #{display_target(mid_state,
+                                 "#{mid_state.player_state.player_name} casts #{find_spell_name(spell_order.spell)} on #{display_target(mid_state,
                                                                                                                                         target)}."))
       end
     end
@@ -317,18 +317,18 @@ module SpellbinderRules
 
         target.shielded = true
 
-        target.battle_state.remaining_protection_turns = 2
+        target.player_state.remaining_protection_turns = 2
       end
     end
 
     # Log shield display as necessary
     next_states.each do |mid_state|
-      if mid_state.shielded? && mid_state.battle_state.remaining_protection_turns == 2
+      if mid_state.shielded? && mid_state.player_state.remaining_protection_turns == 2
         log.push(ColoredText.new('light-blue',
-                                 "#{mid_state.battle_state.player_name} is covered in a thick shimmering shield."))
+                                 "#{mid_state.player_state.player_name} is covered in a thick shimmering shield."))
       elsif mid_state.shielded?
         log.push(ColoredText.new('light-blue',
-                                 "#{mid_state.battle_state.player_name} is covered in a shimmering shield."))
+                                 "#{mid_state.player_state.player_name} is covered in a shimmering shield."))
       end
     end
 
@@ -338,83 +338,83 @@ module SpellbinderRules
 
       case spell_order.spell
       when :surrender
-        mid_state.battle_state.health = -1
+        mid_state.player_state.health = -1
 
-        log.push(ColoredText.new('red', "#{mid_state.battle_state.player_name} surrenders."))
+        log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} surrenders."))
       when :stab
         if target.shielded?
           log.push(ColoredText.new('dark-blue',
-                                   "#{mid_state.battle_state.player_name}'s dagger glances off of #{display_target(
+                                   "#{mid_state.player_state.player_name}'s dagger glances off of #{display_target(
                                      mid_state, target
                                    )}'s shield."))
         else
-          target.battle_state.health -= 1
+          target.player_state.health -= 1
 
           log.push(ColoredText.new('red',
-                                   "#{mid_state.battle_state.player_name} stabs #{display_target(mid_state,
+                                   "#{mid_state.player_state.player_name} stabs #{display_target(mid_state,
                                                                                                  target)} for 1 damage."))
         end
       when :cause_light_wounds
-        target.battle_state.health -= 2
+        target.player_state.health -= 2
 
         log.push(ColoredText.new('red',
-                                 "Light wounds appear on #{target.battle_state.player_name}'s body for 2 damage."))
+                                 "Light wounds appear on #{target.player_state.player_name}'s body for 2 damage."))
       when :amnesia
-        target.battle_state.amnesia = true
+        target.player_state.amnesia = true
 
-        log.push(ColoredText.new('yellow', "#{target.battle_state.player_name} starts to look blank."))
+        log.push(ColoredText.new('yellow', "#{target.player_state.player_name} starts to look blank."))
       when :charm_person
-        mid_state.battle_state.charming_target = target.battle_state.player_name
+        mid_state.player_state.charming_target = target.player_state.player_name
 
         log.push(ColoredText.new('yellow',
-                                 "#{target.battle_state.player_name} looks intrigued by #{mid_state.battle_state.player_name}."))
+                                 "#{target.player_state.player_name} looks intrigued by #{mid_state.player_state.player_name}."))
       when :paralysis
-        mid_state.battle_state.paralyzing_target = target.battle_state.player_name
+        mid_state.player_state.paralyzing_target = target.player_state.player_name
 
         log.push(ColoredText.new('yellow',
-                                 "#{target.battle_state.player_name}'s hands start to stiffen."))
+                                 "#{target.player_state.player_name}'s hands start to stiffen."))
       when :confusion
-        target.battle_state.confused = true
+        target.player_state.confused = true
 
-        log.push(ColoredText.new('yellow', "#{target.battle_state.player_name} looks confused."))
+        log.push(ColoredText.new('yellow', "#{target.player_state.player_name} looks confused."))
       when :fear
-        target.battle_state.scared = true
+        target.player_state.scared = true
 
-        log.push(ColoredText.new('yellow', "#{target.battle_state.player_name} looks scared."))
+        log.push(ColoredText.new('yellow', "#{target.player_state.player_name} looks scared."))
       when :anti_spell
-        target.battle_state.last_turn_anti_spelled = target.battle_state.left_hand.size - 1
+        target.player_state.last_turn_anti_spelled = target.player_state.left_hand.size - 1
       when :disease
-        target.battle_state.remaining_disease_turns = 6
+        target.player_state.remaining_disease_turns = 6
 
-        log.push(ColoredText.new('red', "#{target.battle_state.player_name} starts to look sick."))
+        log.push(ColoredText.new('red', "#{target.player_state.player_name} starts to look sick."))
       when :blindness
-        target.battle_state.remaining_blindness_turns = 3
+        target.player_state.remaining_blindness_turns = 3
 
-        log.push(ColoredText.new('yellow', "#{target.battle_state.player_name}'s sight begins to dim."))
+        log.push(ColoredText.new('yellow', "#{target.player_state.player_name}'s sight begins to dim."))
       end
     end
 
     next_states.each do |mid_state|
-      next unless mid_state.battle_state.remaining_disease_turns == 0
+      next unless mid_state.player_state.remaining_disease_turns == 0
 
-      log.push(ColoredText.new('red', "#{mid_state.battle_state.player_name} keels over and dies of illness."))
+      log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} keels over and dies of illness."))
 
-      mid_state.battle_state.health = -1
+      mid_state.player_state.health = -1
     end
 
     next_states.each do |mid_state|
-      mid_state.battle_state.orders = PlayerOrders.new
+      mid_state.player_state.orders = PlayerOrders.new
     end
 
     {
       log: log,
-      next_states: next_states.map { |mid_state| mid_state.battle_state }
+      next_states: next_states.map { |mid_state| mid_state.player_state }
     }
   end
 
   def self.parse_unihand_gesture(mid_state, next_states, use_left: true)
-    hand = viable_gestures(mid_state.battle_state, left_hand: use_left)
-    target_name = use_left ? mid_state.battle_state.orders.left_target : mid_state.battle_state.orders.right_target
+    hand = viable_gestures(mid_state.player_state, left_hand: use_left)
+    target_name = use_left ? mid_state.player_state.orders.left_target : mid_state.player_state.orders.right_target
     use_default_target = target_name.nil? || target_name.empty?
 
     spells = SingleHandSpellInfo::RECORDS.map do |info|
@@ -439,20 +439,20 @@ module SpellbinderRules
     left_hand.end_with?(str) && right_hand.end_with?(str)
   end
 
-  # MidBattleState -> MidBattleState
+  # MidPlayerState -> MidPlayerState
   def self.find_other_warlock(current_state, available_states)
     available_states.find { |state| state != current_state }
   end
 
   def self.display_target(current_state, target_state)
-    current_name = current_state.battle_state.player_name
-    target_name = target_state.battle_state.player_name
+    current_name = current_state.player_state.player_name
+    target_name = target_state.player_state.player_name
 
     current_name == target_name ? 'themself' : target_name
   end
 
   def self.find_state_by_name(next_states, target_name)
-    next_states.find { |m_state| m_state.battle_state.player_name == target_name }
+    next_states.find { |m_state| m_state.player_state.player_name == target_name }
   end
 
   def self.random_gesture
@@ -468,14 +468,14 @@ module SpellbinderRules
     symbol.to_s.split('_').map(&:capitalize).join(' ')
   end
 
-  def self.viable_gestures(battle_state, left_hand: true)
-    hand = left_hand ? battle_state.left_hand : battle_state.right_hand
-    hand[battle_state.last_turn_anti_spelled + 1..hand.size]
+  def self.viable_gestures(player_state, left_hand: true)
+    hand = left_hand ? player_state.left_hand : player_state.right_hand
+    hand[player_state.last_turn_anti_spelled + 1..hand.size]
   end
 
-  def self.double_ends_with?(battle_state, single_ending, double_ending)
-    left_hand = viable_gestures(battle_state, left_hand: true)
-    right_hand = viable_gestures(battle_state, left_hand: false)
+  def self.double_ends_with?(player_state, single_ending, double_ending)
+    left_hand = viable_gestures(player_state, left_hand: true)
+    right_hand = viable_gestures(player_state, left_hand: false)
     left_hand.end_with?(double_ending) && right_hand.end_with?(double_ending) \
       && (left_hand[0..left_hand.size - 1 - double_ending.size].end_with?(single_ending) || right_hand[0..right_hand.size - 1 - double_ending.size].end_with?(single_ending))
   end

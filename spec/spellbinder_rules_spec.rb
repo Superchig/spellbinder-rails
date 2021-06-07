@@ -5,15 +5,15 @@ include SpellbinderRules
 describe SpellbinderRules do
   describe '.calc_next_turn: ' do
     describe 'Surrendering' do
-      initial_battle_states = [BattleState.new(player_name: 'first@example.com',
+      initial_battle_states = [PlayerState.new(player_name: 'first@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'P',
                                                                         right_gesture: 'P')),
-                               BattleState.new(player_name: 'second@example.com',
+                               PlayerState.new(player_name: 'second@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'P',
                                                                         right_gesture: 'P'))]
 
-      expected_battle_states = [BattleState.new(left_hand: 'P', right_hand: 'P', health: -1, player_name: 'first@example.com'),
-                                BattleState.new(left_hand: 'P', right_hand: 'P', health: -1,
+      expected_battle_states = [PlayerState.new(left_hand: 'P', right_hand: 'P', health: -1, player_name: 'first@example.com'),
+                                PlayerState.new(left_hand: 'P', right_hand: 'P', health: -1,
                                                 player_name: 'second@example.com')]
 
       expected_log = [ColoredText.new('red', 'first@example.com surrenders.'),
@@ -29,13 +29,13 @@ describe SpellbinderRules do
 
     describe 'Stabbing players' do
       it 'logs and damages them' do
-        initial_battle_states = [BattleState.new(player_name: 'first@example.com',
+        initial_battle_states = [PlayerState.new(player_name: 'first@example.com',
                                                  orders: PlayerOrders.new(left_gesture: '>', right_gesture: '-')),
-                                 BattleState.new(player_name: 'second@example.com',
+                                 PlayerState.new(player_name: 'second@example.com',
                                                  orders: PlayerOrders.new(left_gesture: 'S', right_gesture: 'W'))]
 
-        expected_battle_states = [BattleState.new(left_hand: '>', right_hand: '-', health: 15, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: 'S', right_hand: 'W', health: 14,
+        expected_battle_states = [PlayerState.new(left_hand: '>', right_hand: '-', health: 15, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: 'S', right_hand: 'W', health: 14,
                                                   player_name: 'second@example.com')]
 
         expected_log = [ColoredText.new('green', 'first@example.com stabs at second@example.com.'),
@@ -50,15 +50,15 @@ describe SpellbinderRules do
 
     describe 'The spell "Cause Light Wounds"' do
       it 'damages the enemy player' do
-        initial_battle_states = [BattleState.new(left_hand: 'WF',
+        initial_battle_states = [PlayerState.new(left_hand: 'WF',
                                                  right_hand: 'PP', player_name: 'first@example.com',
                                                  orders: PlayerOrders.new(left_gesture: 'P', right_gesture: 'S')),
-                                 BattleState.new(left_hand: '--',
+                                 PlayerState.new(left_hand: '--',
                                                  right_hand: '--', player_name: 'second@example.com',
                                                  orders: PlayerOrders.new(left_gesture: 'S', right_gesture: 'W'))]
 
-        expected_battle_states = [BattleState.new(left_hand: 'WFP', right_hand: 'PPS', health: 15, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: '--S', right_hand: '--W', health: 13,
+        expected_battle_states = [PlayerState.new(left_hand: 'WFP', right_hand: 'PPS', health: 15, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: '--S', right_hand: '--W', health: 13,
                                                   player_name: 'second@example.com')]
 
         expected_log = [ColoredText.new('green',
@@ -74,15 +74,15 @@ describe SpellbinderRules do
 
     describe 'The spell "Shield"' do
       it 'protects the caster from stabs on the turn in which it is cast' do
-        initial_battle_states = [BattleState.new(left_hand: '--',
+        initial_battle_states = [PlayerState.new(left_hand: '--',
                                                  right_hand: '--', player_name: 'first@example.com',
                                                  orders: PlayerOrders.new(left_gesture: '>', right_gesture: '-')),
-                                 BattleState.new(left_hand: '--',
+                                 PlayerState.new(left_hand: '--',
                                                  right_hand: '--', player_name: 'second@example.com',
                                                  orders: PlayerOrders.new(left_gesture: 'P', right_gesture: '-'))]
 
-        expected_battle_states = [BattleState.new(left_hand: '-->', right_hand: '---', health: 15, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: '--P', right_hand: '---', health: 15,
+        expected_battle_states = [PlayerState.new(left_hand: '-->', right_hand: '---', health: 15, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: '--P', right_hand: '---', health: 15,
                                                   player_name: 'second@example.com')]
 
         expected_log = [ColoredText.new('green',
@@ -101,14 +101,14 @@ describe SpellbinderRules do
 
     describe 'Stabbing yourself' do
       it 'actually uses yourself as the target' do
-        initial_battle_states = [BattleState.new(player_name: 'first@example.com',
+        initial_battle_states = [PlayerState.new(player_name: 'first@example.com',
                                                  orders: PlayerOrders.new(left_gesture: '>', right_gesture: '-',
                                                                           left_target: 'first@example.com')),
-                                 BattleState.new(player_name: 'second@example.com',
+                                 PlayerState.new(player_name: 'second@example.com',
                                                  orders: PlayerOrders.new(left_gesture: 'S', right_gesture: 'W'))]
 
-        expected_battle_states = [BattleState.new(left_hand: '>', right_hand: '-', health: 14, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: 'S', right_hand: 'W', health: 15,
+        expected_battle_states = [PlayerState.new(left_hand: '>', right_hand: '-', health: 14, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: 'S', right_hand: 'W', health: 15,
                                                   player_name: 'second@example.com')]
 
         expected_log = [ColoredText.new('green', 'first@example.com stabs at themself.'),
@@ -123,14 +123,14 @@ describe SpellbinderRules do
 
     describe 'Stabbing a specific other warlock' do
       it 'should actually target that warlock' do
-        initial_battle_states = [BattleState.new(player_name: 'first@example.com',
+        initial_battle_states = [PlayerState.new(player_name: 'first@example.com',
                                                  orders: PlayerOrders.new(left_gesture: '>', right_gesture: '-',
                                                                           left_target: 'second@example.com')),
-                                 BattleState.new(player_name: 'second@example.com',
+                                 PlayerState.new(player_name: 'second@example.com',
                                                  orders: PlayerOrders.new(left_gesture: 'S', right_gesture: 'W'))]
 
-        expected_battle_states = [BattleState.new(left_hand: '>', right_hand: '-', health: 15, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: 'S', right_hand: 'W', health: 14,
+        expected_battle_states = [PlayerState.new(left_hand: '>', right_hand: '-', health: 15, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: 'S', right_hand: 'W', health: 14,
                                                   player_name: 'second@example.com')]
 
         expected_log = [ColoredText.new('green', 'first@example.com stabs at second@example.com.'),
@@ -145,13 +145,13 @@ describe SpellbinderRules do
 
     describe 'Stabbing with the right hand' do
       it 'should actually stab the opponent' do
-        initial_battle_states = [BattleState.new(player_name: 'first@example.com',
+        initial_battle_states = [PlayerState.new(player_name: 'first@example.com',
                                                  orders: PlayerOrders.new(left_gesture: '-', right_gesture: '>')),
-                                 BattleState.new(player_name: 'second@example.com',
+                                 PlayerState.new(player_name: 'second@example.com',
                                                  orders: PlayerOrders.new(left_gesture: 'S', right_gesture: 'W'))]
 
-        expected_battle_states = [BattleState.new(left_hand: '-', right_hand: '>', health: 15, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: 'S', right_hand: 'W', health: 14,
+        expected_battle_states = [PlayerState.new(left_hand: '-', right_hand: '>', health: 15, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: 'S', right_hand: 'W', health: 14,
                                                   player_name: 'second@example.com')]
 
         expected_log = [ColoredText.new('green', 'first@example.com stabs at second@example.com.'),
@@ -166,14 +166,14 @@ describe SpellbinderRules do
 
     describe 'Stabbing with the right hand' do
       it 'should not use the left hand\'s target' do
-        initial_battle_states = [BattleState.new(player_name: 'first@example.com',
+        initial_battle_states = [PlayerState.new(player_name: 'first@example.com',
                                                  orders: PlayerOrders.new(left_gesture: '-', right_gesture: '>',
                                                                           left_target: 'first@example.com')),
-                                 BattleState.new(player_name: 'second@example.com',
+                                 PlayerState.new(player_name: 'second@example.com',
                                                  orders: PlayerOrders.new(left_gesture: 'S', right_gesture: 'W'))]
 
-        expected_battle_states = [BattleState.new(left_hand: '-', right_hand: '>', health: 15, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: 'S', right_hand: 'W', health: 14,
+        expected_battle_states = [PlayerState.new(left_hand: '-', right_hand: '>', health: 15, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: 'S', right_hand: 'W', health: 14,
                                                   player_name: 'second@example.com')]
 
         expected_log = [ColoredText.new('green', 'first@example.com stabs at second@example.com.'),
@@ -189,15 +189,15 @@ describe SpellbinderRules do
 
   describe 'Casting "Cause Light Wounds" with the right hand' do
     it 'should still harm the opponent' do
-      initial_battle_states = [BattleState.new(left_hand: '--',
+      initial_battle_states = [PlayerState.new(left_hand: '--',
                                                right_hand: 'WF', player_name: 'first@example.com',
                                                orders: PlayerOrders.new(left_gesture: '-', right_gesture: 'P')),
-                               BattleState.new(left_hand: '--',
+                               PlayerState.new(left_hand: '--',
                                                right_hand: '--', player_name: 'second@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'S', right_gesture: 'W'))]
 
-      expected_battle_states = [BattleState.new(left_hand: '---', right_hand: 'WFP', health: 15, player_name: 'first@example.com'),
-                                BattleState.new(left_hand: '--S', right_hand: '--W', health: 13,
+      expected_battle_states = [PlayerState.new(left_hand: '---', right_hand: 'WFP', health: 15, player_name: 'first@example.com'),
+                                PlayerState.new(left_hand: '--S', right_hand: '--W', health: 13,
                                                 player_name: 'second@example.com')]
 
       expected_log = [ColoredText.new('green',
@@ -213,15 +213,15 @@ describe SpellbinderRules do
 
   describe 'Casting "Cause Light Wounds" at yourself' do
     it 'should harm yourself' do
-      initial_battle_states = [BattleState.new(left_hand: '--',
+      initial_battle_states = [PlayerState.new(left_hand: '--',
                                                right_hand: 'WF', player_name: 'first@example.com',
                                                orders: PlayerOrders.new(left_gesture: '-', right_gesture: 'P', right_target: 'first@example.com')),
-                               BattleState.new(left_hand: '--',
+                               PlayerState.new(left_hand: '--',
                                                right_hand: '--', player_name: 'second@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'S', right_gesture: 'W'))]
 
-      expected_battle_states = [BattleState.new(left_hand: '---', right_hand: 'WFP', health: 13, player_name: 'first@example.com'),
-                                BattleState.new(left_hand: '--S', right_hand: '--W', health: 15,
+      expected_battle_states = [PlayerState.new(left_hand: '---', right_hand: 'WFP', health: 13, player_name: 'first@example.com'),
+                                PlayerState.new(left_hand: '--S', right_hand: '--W', health: 15,
                                                 player_name: 'second@example.com')]
 
       expected_log = [ColoredText.new('green',
@@ -237,15 +237,15 @@ describe SpellbinderRules do
 
   describe 'Casting "Amnesia"' do
     it 'should force the enemy warlock to repeat identically their gestures in the next turn' do
-      initial_battle_states_1 = [BattleState.new(left_hand: '--',
+      initial_battle_states_1 = [PlayerState.new(left_hand: '--',
                                                  right_hand: 'DP', player_name: 'first@example.com',
                                                  orders: PlayerOrders.new(left_gesture: '-', right_gesture: 'P')),
-                                 BattleState.new(left_hand: '--',
+                                 PlayerState.new(left_hand: '--',
                                                  right_hand: '--', player_name: 'second@example.com',
                                                  orders: PlayerOrders.new(left_gesture: 'S', right_gesture: 'W'))]
 
-      expected_battle_states_1 = [BattleState.new(left_hand: '---', right_hand: 'DPP', health: 15, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: '--S', right_hand: '--W', health: 15,
+      expected_battle_states_1 = [PlayerState.new(left_hand: '---', right_hand: 'DPP', health: 15, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: '--S', right_hand: '--W', health: 15,
                                                   player_name: 'second@example.com', amnesia: true)]
 
       expected_log_1 = [ColoredText.new('green',
@@ -263,8 +263,8 @@ describe SpellbinderRules do
       initial_battle_states_2[1].orders.left_gesture = '-'
       initial_battle_states_2[1].orders.right_gesture = '-'
 
-      expected_battle_states_2 = [BattleState.new(left_hand: '----', right_hand: 'DPP-', health: 15, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: '--SS', right_hand: '--WW', health: 15,
+      expected_battle_states_2 = [PlayerState.new(left_hand: '----', right_hand: 'DPP-', health: 15, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: '--SS', right_hand: '--WW', health: 15,
                                                   player_name: 'second@example.com')]
 
       expected_log_2 = [ColoredText.new('yellow',
@@ -279,16 +279,16 @@ describe SpellbinderRules do
 
   describe 'A warlock casting "Charm Person"' do
     it 'can override the gesture for another player' do
-      initial_battle_states = [BattleState.new(left_hand: '---',
+      initial_battle_states = [PlayerState.new(left_hand: '---',
                                                right_hand: 'PSD', player_name: 'first@example.com',
                                                orders: PlayerOrders.new(left_gesture: '-', right_gesture: 'F')),
-                               BattleState.new(left_hand: '---',
+                               PlayerState.new(left_hand: '---',
                                                right_hand: '---', player_name: 'second@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'S', right_gesture: 'W'))]
 
-      expected_battle_states = [BattleState.new(left_hand: '----', right_hand: 'PSDF', health: 15, player_name: 'first@example.com',
+      expected_battle_states = [PlayerState.new(left_hand: '----', right_hand: 'PSDF', health: 15, player_name: 'first@example.com',
                                                 charming_target: 'second@example.com'),
-                                BattleState.new(left_hand: '---S', right_hand: '---W', health: 15,
+                                PlayerState.new(left_hand: '---S', right_hand: '---W', health: 15,
                                                 player_name: 'second@example.com')]
 
       expected_log = [ColoredText.new('green',
@@ -308,8 +308,8 @@ describe SpellbinderRules do
       initial_battle_states_2[1].orders.right_gesture = 'W'
       initial_battle_states_2[0].orders.override_gesture = OverrideGesture.new('second@example.com', '-', false)
 
-      expected_battle_states_2 = [BattleState.new(left_hand: '-----', right_hand: 'PSDF-', health: 15, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: '---SS', right_hand: '---W-', health: 15,
+      expected_battle_states_2 = [PlayerState.new(left_hand: '-----', right_hand: 'PSDF-', health: 15, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: '---SS', right_hand: '---W-', health: 15,
                                                   player_name: 'second@example.com')]
 
       expected_log_2 = [ColoredText.new('yellow',
@@ -324,16 +324,16 @@ describe SpellbinderRules do
 
   describe 'Casting "Paralysis"' do
     it 'locks a warlock\'s hand in place' do
-      initial_battle_states = [BattleState.new(left_hand: 'FF',
+      initial_battle_states = [PlayerState.new(left_hand: 'FF',
                                                right_hand: '--', player_name: 'first@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'F', right_gesture: '-')),
-                               BattleState.new(left_hand: '--',
+                               PlayerState.new(left_hand: '--',
                                                right_hand: '--', player_name: 'second@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'D', right_gesture: '-'))]
 
-      expected_battle_states = [BattleState.new(left_hand: 'FFF', right_hand: '---', health: 15, player_name: 'first@example.com',
+      expected_battle_states = [PlayerState.new(left_hand: 'FFF', right_hand: '---', health: 15, player_name: 'first@example.com',
                                                 paralyzing_target: 'second@example.com'),
-                                BattleState.new(left_hand: '--D', right_hand: '---', health: 15,
+                                PlayerState.new(left_hand: '--D', right_hand: '---', health: 15,
                                                 player_name: 'second@example.com')]
 
       expected_log = [ColoredText.new('green',
@@ -353,8 +353,8 @@ describe SpellbinderRules do
       initial_battle_states_2[1].orders.left_gesture = 'F'
       initial_battle_states_2[1].orders.right_gesture = '-'
 
-      expected_battle_states_2 = [BattleState.new(left_hand: 'FFF-', right_hand: '----', health: 15, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: '--DD', right_hand: '----', health: 15,
+      expected_battle_states_2 = [PlayerState.new(left_hand: 'FFF-', right_hand: '----', health: 15, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: '--DD', right_hand: '----', health: 15,
                                                   player_name: 'second@example.com')]
 
       expected_log_2 = [ColoredText.new('yellow',
@@ -369,16 +369,16 @@ describe SpellbinderRules do
 
   describe 'Casting "Paralysis" on a hand with "S"' do
     it 'transforms the "S" into a "D"' do
-      initial_battle_states = [BattleState.new(left_hand: 'FF',
+      initial_battle_states = [PlayerState.new(left_hand: 'FF',
                                                right_hand: '--', player_name: 'first@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'F', right_gesture: '-')),
-                               BattleState.new(left_hand: '--',
+                               PlayerState.new(left_hand: '--',
                                                right_hand: '--', player_name: 'second@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'S', right_gesture: '-'))]
 
-      expected_battle_states = [BattleState.new(left_hand: 'FFF', right_hand: '---', health: 15, player_name: 'first@example.com',
+      expected_battle_states = [PlayerState.new(left_hand: 'FFF', right_hand: '---', health: 15, player_name: 'first@example.com',
                                                 paralyzing_target: 'second@example.com'),
-                                BattleState.new(left_hand: '--S', right_hand: '---', health: 15,
+                                PlayerState.new(left_hand: '--S', right_hand: '---', health: 15,
                                                 player_name: 'second@example.com')]
 
       expected_log = [ColoredText.new('green',
@@ -398,8 +398,8 @@ describe SpellbinderRules do
       initial_battle_states_2[1].orders.left_gesture = 'F'
       initial_battle_states_2[1].orders.right_gesture = '-'
 
-      expected_battle_states_2 = [BattleState.new(left_hand: 'FFF-', right_hand: '----', health: 15, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: '--SD', right_hand: '----', health: 15,
+      expected_battle_states_2 = [PlayerState.new(left_hand: 'FFF-', right_hand: '----', health: 15, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: '--SD', right_hand: '----', health: 15,
                                                   player_name: 'second@example.com')]
 
       expected_log_2 = [ColoredText.new('yellow',
@@ -417,15 +417,15 @@ describe SpellbinderRules do
       allow(SpellbinderRules).to receive(:random_gesture) { 'S' }
       allow(SpellbinderRules).to receive(:random_hand) { :right }
 
-      initial_battle_states = [BattleState.new(left_hand: 'DS',
+      initial_battle_states = [PlayerState.new(left_hand: 'DS',
                                                right_hand: '--', player_name: 'first@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'F', right_gesture: '-')),
-                               BattleState.new(left_hand: '--',
+                               PlayerState.new(left_hand: '--',
                                                right_hand: '--', player_name: 'second@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'W', right_gesture: '-'))]
 
-      expected_battle_states = [BattleState.new(left_hand: 'DSF', right_hand: '---', health: 15, player_name: 'first@example.com'),
-                                BattleState.new(left_hand: '--W', right_hand: '---', health: 15,
+      expected_battle_states = [PlayerState.new(left_hand: 'DSF', right_hand: '---', health: 15, player_name: 'first@example.com'),
+                                PlayerState.new(left_hand: '--W', right_hand: '---', health: 15,
                                                 player_name: 'second@example.com', confused: true)]
 
       expected_log = [ColoredText.new('green',
@@ -444,8 +444,8 @@ describe SpellbinderRules do
       initial_battle_states_2[1].orders.left_gesture = '-'
       initial_battle_states_2[1].orders.right_gesture = '-'
 
-      expected_battle_states_2 = [BattleState.new(left_hand: 'DSF-', right_hand: '----', health: 15, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: '--W-', right_hand: '---S', health: 15,
+      expected_battle_states_2 = [PlayerState.new(left_hand: 'DSF-', right_hand: '----', health: 15, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: '--W-', right_hand: '---S', health: 15,
                                                   player_name: 'second@example.com')]
 
       expected_log_2 = [ColoredText.new('yellow',
@@ -460,15 +460,15 @@ describe SpellbinderRules do
 
   describe 'Casting "Fear"' do
     it 'prevents the target from performing a C, D, F, or S gesture' do
-      initial_battle_states = [BattleState.new(left_hand: 'SW',
+      initial_battle_states = [PlayerState.new(left_hand: 'SW',
                                                right_hand: '--', player_name: 'first@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'D', right_gesture: '-')),
-                               BattleState.new(left_hand: '--',
+                               PlayerState.new(left_hand: '--',
                                                right_hand: '--', player_name: 'second@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'W', right_gesture: '-'))]
 
-      expected_battle_states = [BattleState.new(left_hand: 'SWD', right_hand: '---', health: 15, player_name: 'first@example.com'),
-                                BattleState.new(left_hand: '--W', right_hand: '---', health: 15,
+      expected_battle_states = [PlayerState.new(left_hand: 'SWD', right_hand: '---', health: 15, player_name: 'first@example.com'),
+                                PlayerState.new(left_hand: '--W', right_hand: '---', health: 15,
                                                 player_name: 'second@example.com', scared: true)]
 
       expected_log = [ColoredText.new('green',
@@ -487,8 +487,8 @@ describe SpellbinderRules do
       initial_battle_states_2[1].orders.left_gesture = 'D'
       initial_battle_states_2[1].orders.right_gesture = 'F'
 
-      expected_battle_states_2 = [BattleState.new(left_hand: 'SWD-', right_hand: '----', health: 15, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: '--W-', right_hand: '----', health: 15,
+      expected_battle_states_2 = [PlayerState.new(left_hand: 'SWD-', right_hand: '----', health: 15, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: '--W-', right_hand: '----', health: 15,
                                                   player_name: 'second@example.com')]
 
       expected_log_2 = [ColoredText.new('yellow',
@@ -503,15 +503,15 @@ describe SpellbinderRules do
 
   describe 'Casting "Anti Spell"' do
     it 'prevents the target from using gestures made on or before the turn' do
-      initial_battle_states = [BattleState.new(left_hand: 'SPF',
+      initial_battle_states = [PlayerState.new(left_hand: 'SPF',
                                                right_hand: '---', player_name: 'first@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'P', right_gesture: '-')),
-                               BattleState.new(left_hand: '---',
+                               PlayerState.new(left_hand: '---',
                                                right_hand: '--W', player_name: 'second@example.com',
                                                orders: PlayerOrders.new(left_gesture: '-', right_gesture: 'F'))]
 
-      expected_battle_states = [BattleState.new(left_hand: 'SPFP', right_hand: '----', health: 15, player_name: 'first@example.com'),
-                                BattleState.new(left_hand: '----', right_hand: '--WF', health: 15,
+      expected_battle_states = [PlayerState.new(left_hand: 'SPFP', right_hand: '----', health: 15, player_name: 'first@example.com'),
+                                PlayerState.new(left_hand: '----', right_hand: '--WF', health: 15,
                                                 player_name: 'second@example.com', last_turn_anti_spelled: 3)]
 
       expected_log = [ColoredText.new('green',
@@ -528,8 +528,8 @@ describe SpellbinderRules do
       initial_battle_states_2[1].orders.left_gesture = '-'
       initial_battle_states_2[1].orders.right_gesture = 'P'
 
-      expected_battle_states_2 = [BattleState.new(left_hand: 'SPFP-', right_hand: '-----', health: 15, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: '-----', right_hand: '--WFP', health: 15,
+      expected_battle_states_2 = [PlayerState.new(left_hand: 'SPFP-', right_hand: '-----', health: 15, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: '-----', right_hand: '--WFP', health: 15,
                                                   player_name: 'second@example.com', last_turn_anti_spelled: 3)]
 
       expected_log_2 = [ColoredText.new('green',
@@ -546,16 +546,16 @@ describe SpellbinderRules do
 
   describe 'Casting "Protection"' do
     it 'protects the caster for this turn and the following two as if using a Shield spell.' do
-      initial_battle_states = [BattleState.new(left_hand: 'WW',
+      initial_battle_states = [PlayerState.new(left_hand: 'WW',
                                                right_hand: '--', player_name: 'first@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'P', right_gesture: '-')),
-                               BattleState.new(left_hand: '--',
+                               PlayerState.new(left_hand: '--',
                                                right_hand: '--', player_name: 'second@example.com',
                                                orders: PlayerOrders.new(left_gesture: '-', right_gesture: '>'))]
 
-      expected_battle_states = [BattleState.new(left_hand: 'WWP', right_hand: '---', health: 15, player_name: 'first@example.com',
+      expected_battle_states = [PlayerState.new(left_hand: 'WWP', right_hand: '---', health: 15, player_name: 'first@example.com',
                                                 remaining_protection_turns: 2),
-                                BattleState.new(left_hand: '---', right_hand: '-->', health: 15,
+                                PlayerState.new(left_hand: '---', right_hand: '-->', health: 15,
                                                 player_name: 'second@example.com')]
 
       expected_log = [ColoredText.new('green',
@@ -576,8 +576,8 @@ describe SpellbinderRules do
       initial_battle_states_2[0].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
       initial_battle_states_2[1].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '>')
 
-      expected_battle_states_2 = [BattleState.new(left_hand: 'WWP-', right_hand: '----', health: 15, player_name: 'first@example.com', remaining_protection_turns: 1),
-                                  BattleState.new(left_hand: '----', right_hand: '-->>', health: 15,
+      expected_battle_states_2 = [PlayerState.new(left_hand: 'WWP-', right_hand: '----', health: 15, player_name: 'first@example.com', remaining_protection_turns: 1),
+                                  PlayerState.new(left_hand: '----', right_hand: '-->>', health: 15,
                                                   player_name: 'second@example.com')]
 
       expected_log_2 = [ColoredText.new('green',
@@ -596,8 +596,8 @@ describe SpellbinderRules do
       initial_battle_states_3[0].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
       initial_battle_states_3[1].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '>')
 
-      expected_battle_states_3 = [BattleState.new(left_hand: 'WWP--', right_hand: '-----', health: 15, player_name: 'first@example.com', remaining_protection_turns: 0),
-                                  BattleState.new(left_hand: '-----', right_hand: '-->>>', health: 15,
+      expected_battle_states_3 = [PlayerState.new(left_hand: 'WWP--', right_hand: '-----', health: 15, player_name: 'first@example.com', remaining_protection_turns: 0),
+                                  PlayerState.new(left_hand: '-----', right_hand: '-->>>', health: 15,
                                                   player_name: 'second@example.com')]
 
       expected_log_3 = [ColoredText.new('green',
@@ -616,8 +616,8 @@ describe SpellbinderRules do
       initial_battle_states_4[0].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
       initial_battle_states_4[1].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '>')
 
-      expected_battle_states_4 = [BattleState.new(left_hand: 'WWP---', right_hand: '------', health: 14, player_name: 'first@example.com', remaining_protection_turns: 0),
-                                  BattleState.new(left_hand: '------', right_hand: '-->>>>', health: 15,
+      expected_battle_states_4 = [PlayerState.new(left_hand: 'WWP---', right_hand: '------', health: 14, player_name: 'first@example.com', remaining_protection_turns: 0),
+                                  PlayerState.new(left_hand: '------', right_hand: '-->>>>', health: 15,
                                                   player_name: 'second@example.com')]
 
       expected_log_4 = [ColoredText.new('green',
@@ -634,15 +634,15 @@ describe SpellbinderRules do
 
   describe 'Casting "Disease"' do
     it 'kills the target warlock at the end of the 6th turn following the one in which it was cast' do
-      initial_battle_states = [BattleState.new(left_hand: 'DSFFF',
+      initial_battle_states = [PlayerState.new(left_hand: 'DSFFF',
                                                right_hand: '-----', player_name: 'first@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'C', right_gesture: 'C')),
-                               BattleState.new(left_hand: '-----',
+                               PlayerState.new(left_hand: '-----',
                                                right_hand: '-----', player_name: 'second@example.com',
                                                orders: PlayerOrders.new(left_gesture: '-', right_gesture: '-'))]
 
-      expected_battle_states = [BattleState.new(left_hand: 'DSFFFC', right_hand: '-----C', health: 15, player_name: 'first@example.com'),
-                                BattleState.new(left_hand: '------', right_hand: '------', health: 15,
+      expected_battle_states = [PlayerState.new(left_hand: 'DSFFFC', right_hand: '-----C', health: 15, player_name: 'first@example.com'),
+                                PlayerState.new(left_hand: '------', right_hand: '------', health: 15,
                                                 player_name: 'second@example.com', remaining_disease_turns: 6)]
 
       expected_log = [ColoredText.new('green',
@@ -661,8 +661,8 @@ describe SpellbinderRules do
       initial_battle_states_2[0].orders = repetitive_orders
       initial_battle_states_2[1].orders = repetitive_orders
 
-      expected_battle_states_2 = [BattleState.new(left_hand: 'DSFFFC-', right_hand: '-----C-', health: 15, player_name: 'first@example.com'),
-                                  BattleState.new(left_hand: '-------', right_hand: '-------', health: 15,
+      expected_battle_states_2 = [PlayerState.new(left_hand: 'DSFFFC-', right_hand: '-----C-', health: 15, player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: '-------', right_hand: '-------', health: 15,
                                                   player_name: 'second@example.com', remaining_disease_turns: 5)]
 
       expected_log_2 = [ColoredText.new('red',
@@ -687,8 +687,8 @@ describe SpellbinderRules do
         expect(result_n[:next_states][1].remaining_disease_turns).to eq(7 - n)
       end
 
-      expected_battle_states_final = [BattleState.new(left_hand: 'DSFFFC------', right_hand: '-----C------', health: 15, player_name: 'first@example.com'),
-                                      BattleState.new(left_hand: '------------', right_hand: '------------',
+      expected_battle_states_final = [PlayerState.new(left_hand: 'DSFFFC------', right_hand: '-----C------', health: 15, player_name: 'first@example.com'),
+                                      PlayerState.new(left_hand: '------------', right_hand: '------------',
                                                       health: -1, player_name: 'second@example.com', remaining_disease_turns: 0)]
 
       expected_log_final = [ColoredText.new('red', 'second@example.com is on the verge of death.'),
@@ -701,15 +701,15 @@ describe SpellbinderRules do
 
   describe 'Casting "Blindness"' do
     it 'prevents the target warlock from seeing the other warlock\'s gestures or directing his spells at them for the next 3 turns' do
-      initial_battle_states = [BattleState.new(left_hand: 'DWFF',
+      initial_battle_states = [PlayerState.new(left_hand: 'DWFF',
                                                right_hand: '----', player_name: 'first@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'D', right_gesture: 'D')),
-                               BattleState.new(left_hand: '----',
+                               PlayerState.new(left_hand: '----',
                                                right_hand: '----', player_name: 'second@example.com',
                                                orders: PlayerOrders.new(left_gesture: '-', right_gesture: '-'))]
 
-      expected_battle_states = [BattleState.new(left_hand: 'DWFFD', right_hand: '----D', health: 15, player_name: 'first@example.com'),
-                                BattleState.new(left_hand: '-----', right_hand: '-----', health: 15,
+      expected_battle_states = [PlayerState.new(left_hand: 'DWFFD', right_hand: '----D', health: 15, player_name: 'first@example.com'),
+                                PlayerState.new(left_hand: '-----', right_hand: '-----', health: 15,
                                                 player_name: 'second@example.com', remaining_blindness_turns: 3)]
 
       expected_log = [ColoredText.new('green',
