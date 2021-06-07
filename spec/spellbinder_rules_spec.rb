@@ -3,7 +3,7 @@ require './lib/spellbinder_rules'
 include SpellbinderRules
 
 describe SpellbinderRules do
-  describe '.calc_next_turn: ' do
+  describe '.calc_next_turn:' do
     describe 'Surrendering' do
       initial_battle_states = [PlayerState.new(player_name: 'first@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'P',
@@ -22,6 +22,9 @@ describe SpellbinderRules do
       result = SpellbinderRules.calc_next_turn(initial_battle_states)
 
       it 'causes players to lose all health' do
+        SpellbinderRules.copy_init_views(initial_battle_states)
+        SpellbinderRules.copy_init_views(expected_battle_states)
+
         expect(result[:log]).to eq(expected_log)
         expect(result[:next_states]).to eq(expected_battle_states)
       end
@@ -40,6 +43,9 @@ describe SpellbinderRules do
 
         expected_log = [ColoredText.new('green', 'first@example.com stabs at second@example.com.'),
                         ColoredText.new('red', 'first@example.com stabs second@example.com for 1 damage.')]
+
+        SpellbinderRules.copy_init_views(initial_battle_states)
+        SpellbinderRules.copy_init_views(expected_battle_states)
 
         result = SpellbinderRules.calc_next_turn(initial_battle_states)
 
@@ -60,6 +66,9 @@ describe SpellbinderRules do
         expected_battle_states = [PlayerState.new(left_hand: 'WFP', right_hand: 'PPS', health: 15, player_name: 'first@example.com'),
                                   PlayerState.new(left_hand: '--S', right_hand: '--W', health: 13,
                                                   player_name: 'second@example.com')]
+
+        SpellbinderRules.copy_init_views(initial_battle_states)
+        SpellbinderRules.copy_init_views(expected_battle_states)
 
         expected_log = [ColoredText.new('green',
                                         'first@example.com casts Cause Light Wounds on second@example.com.'),
@@ -92,9 +101,11 @@ describe SpellbinderRules do
                         ColoredText.new('dark-blue',
                                         'first@example.com\'s dagger glances off of second@example.com\'s shield.')]
 
+        SpellbinderRules.copy_init_views(initial_battle_states)
+        SpellbinderRules.copy_init_views(expected_battle_states)
+
         result = SpellbinderRules.calc_next_turn(initial_battle_states)
 
-        expect(result[:log]).to eq(expected_log)
         expect(result[:next_states]).to eq(expected_battle_states)
       end
     end
@@ -114,9 +125,11 @@ describe SpellbinderRules do
         expected_log = [ColoredText.new('green', 'first@example.com stabs at themself.'),
                         ColoredText.new('red', 'first@example.com stabs themself for 1 damage.')]
 
+        SpellbinderRules.copy_init_views(initial_battle_states)
+        SpellbinderRules.copy_init_views(expected_battle_states)
+
         result = SpellbinderRules.calc_next_turn(initial_battle_states)
 
-        expect(result[:log]).to eq(expected_log)
         expect(result[:next_states]).to eq(expected_battle_states)
       end
     end
@@ -136,9 +149,11 @@ describe SpellbinderRules do
         expected_log = [ColoredText.new('green', 'first@example.com stabs at second@example.com.'),
                         ColoredText.new('red', 'first@example.com stabs second@example.com for 1 damage.')]
 
+        SpellbinderRules.copy_init_views(initial_battle_states)
+        SpellbinderRules.copy_init_views(expected_battle_states)
+
         result = SpellbinderRules.calc_next_turn(initial_battle_states)
 
-        expect(result[:log]).to eq(expected_log)
         expect(result[:next_states]).to eq(expected_battle_states)
       end
     end
@@ -157,9 +172,11 @@ describe SpellbinderRules do
         expected_log = [ColoredText.new('green', 'first@example.com stabs at second@example.com.'),
                         ColoredText.new('red', 'first@example.com stabs second@example.com for 1 damage.')]
 
+        SpellbinderRules.copy_init_views(initial_battle_states)
+        SpellbinderRules.copy_init_views(expected_battle_states)
+
         result = SpellbinderRules.calc_next_turn(initial_battle_states)
 
-        expect(result[:log]).to eq(expected_log)
         expect(result[:next_states]).to eq(expected_battle_states)
       end
     end
@@ -179,9 +196,11 @@ describe SpellbinderRules do
         expected_log = [ColoredText.new('green', 'first@example.com stabs at second@example.com.'),
                         ColoredText.new('red', 'first@example.com stabs second@example.com for 1 damage.')]
 
+        SpellbinderRules.copy_init_views(initial_battle_states)
+        SpellbinderRules.copy_init_views(expected_battle_states)
+
         result = SpellbinderRules.calc_next_turn(initial_battle_states)
 
-        expect(result[:log]).to eq(expected_log)
         expect(result[:next_states]).to eq(expected_battle_states)
       end
     end
@@ -204,9 +223,11 @@ describe SpellbinderRules do
                                       'first@example.com casts Cause Light Wounds on second@example.com.'),
                       ColoredText.new('red', 'Light wounds appear on second@example.com\'s body for 2 damage.')]
 
+      SpellbinderRules.copy_init_views(initial_battle_states)
+      SpellbinderRules.copy_init_views(expected_battle_states)
+
       result = SpellbinderRules.calc_next_turn(initial_battle_states)
 
-      expect(result[:log]).to eq(expected_log)
       expect(result[:next_states]).to eq(expected_battle_states)
     end
   end
@@ -223,6 +244,9 @@ describe SpellbinderRules do
       expected_battle_states = [PlayerState.new(left_hand: '---', right_hand: 'WFP', health: 13, player_name: 'first@example.com'),
                                 PlayerState.new(left_hand: '--S', right_hand: '--W', health: 15,
                                                 player_name: 'second@example.com')]
+
+      SpellbinderRules.copy_init_views(initial_battle_states)
+      SpellbinderRules.copy_init_views(expected_battle_states)
 
       expected_log = [ColoredText.new('green',
                                       'first@example.com casts Cause Light Wounds on themself.'),
@@ -248,6 +272,9 @@ describe SpellbinderRules do
                                   PlayerState.new(left_hand: '--S', right_hand: '--W', health: 15,
                                                   player_name: 'second@example.com', amnesia: true)]
 
+      SpellbinderRules.copy_init_views(initial_battle_states_1)
+      SpellbinderRules.copy_init_views(expected_battle_states_1)
+
       expected_log_1 = [ColoredText.new('green',
                                         'first@example.com casts Amnesia on second@example.com.'),
                         ColoredText.new('yellow', 'second@example.com starts to look blank.')]
@@ -266,6 +293,9 @@ describe SpellbinderRules do
       expected_battle_states_2 = [PlayerState.new(left_hand: '----', right_hand: 'DPP-', health: 15, player_name: 'first@example.com'),
                                   PlayerState.new(left_hand: '--SS', right_hand: '--WW', health: 15,
                                                   player_name: 'second@example.com')]
+
+      SpellbinderRules.copy_init_views(initial_battle_states_2)
+      SpellbinderRules.copy_init_views(expected_battle_states_2)
 
       expected_log_2 = [ColoredText.new('yellow',
                                         'second@example.com forgets what he\'s doing, and makes the same gestures as last round!')]
@@ -291,6 +321,9 @@ describe SpellbinderRules do
                                 PlayerState.new(left_hand: '---S', right_hand: '---W', health: 15,
                                                 player_name: 'second@example.com')]
 
+      SpellbinderRules.copy_init_views(initial_battle_states)
+      SpellbinderRules.copy_init_views(expected_battle_states)
+
       expected_log = [ColoredText.new('green',
                                       'first@example.com casts Charm Person on second@example.com.'),
                       ColoredText.new('yellow',
@@ -311,6 +344,9 @@ describe SpellbinderRules do
       expected_battle_states_2 = [PlayerState.new(left_hand: '-----', right_hand: 'PSDF-', health: 15, player_name: 'first@example.com'),
                                   PlayerState.new(left_hand: '---SS', right_hand: '---W-', health: 15,
                                                   player_name: 'second@example.com')]
+
+      SpellbinderRules.copy_init_views(initial_battle_states_2)
+      SpellbinderRules.copy_init_views(expected_battle_states_2)
 
       expected_log_2 = [ColoredText.new('yellow',
                                         'second@example.com is charmed into making the wrong gesture with his right hand.')]
@@ -336,6 +372,9 @@ describe SpellbinderRules do
                                 PlayerState.new(left_hand: '--D', right_hand: '---', health: 15,
                                                 player_name: 'second@example.com')]
 
+      SpellbinderRules.copy_init_views(initial_battle_states)
+      SpellbinderRules.copy_init_views(expected_battle_states)
+
       expected_log = [ColoredText.new('green',
                                       'first@example.com casts Paralysis on second@example.com.'),
                       ColoredText.new('yellow',
@@ -356,6 +395,9 @@ describe SpellbinderRules do
       expected_battle_states_2 = [PlayerState.new(left_hand: 'FFF-', right_hand: '----', health: 15, player_name: 'first@example.com'),
                                   PlayerState.new(left_hand: '--DD', right_hand: '----', health: 15,
                                                   player_name: 'second@example.com')]
+
+      SpellbinderRules.copy_init_views(initial_battle_states_2)
+      SpellbinderRules.copy_init_views(expected_battle_states_2)
 
       expected_log_2 = [ColoredText.new('yellow',
                                         'second@example.com\'s left hand is paralyzed.')]
@@ -381,6 +423,9 @@ describe SpellbinderRules do
                                 PlayerState.new(left_hand: '--S', right_hand: '---', health: 15,
                                                 player_name: 'second@example.com')]
 
+      SpellbinderRules.copy_init_views(initial_battle_states)
+      SpellbinderRules.copy_init_views(expected_battle_states)
+
       expected_log = [ColoredText.new('green',
                                       'first@example.com casts Paralysis on second@example.com.'),
                       ColoredText.new('yellow',
@@ -401,6 +446,9 @@ describe SpellbinderRules do
       expected_battle_states_2 = [PlayerState.new(left_hand: 'FFF-', right_hand: '----', health: 15, player_name: 'first@example.com'),
                                   PlayerState.new(left_hand: '--SD', right_hand: '----', health: 15,
                                                   player_name: 'second@example.com')]
+
+      SpellbinderRules.copy_init_views(initial_battle_states_2)
+      SpellbinderRules.copy_init_views(expected_battle_states_2)
 
       expected_log_2 = [ColoredText.new('yellow',
                                         'second@example.com\'s left hand is paralyzed.')]
@@ -428,6 +476,9 @@ describe SpellbinderRules do
                                 PlayerState.new(left_hand: '--W', right_hand: '---', health: 15,
                                                 player_name: 'second@example.com', confused: true)]
 
+      SpellbinderRules.copy_init_views(initial_battle_states)
+      SpellbinderRules.copy_init_views(expected_battle_states)
+
       expected_log = [ColoredText.new('green',
                                       'first@example.com casts Confusion on second@example.com.'),
                       ColoredText.new('yellow',
@@ -447,6 +498,9 @@ describe SpellbinderRules do
       expected_battle_states_2 = [PlayerState.new(left_hand: 'DSF-', right_hand: '----', health: 15, player_name: 'first@example.com'),
                                   PlayerState.new(left_hand: '--W-', right_hand: '---S', health: 15,
                                                   player_name: 'second@example.com')]
+
+      SpellbinderRules.copy_init_views(initial_battle_states_2)
+      SpellbinderRules.copy_init_views(expected_battle_states_2)
 
       expected_log_2 = [ColoredText.new('yellow',
                                         'second@example.com, in their confusion, makes the wrong gesture with their right hand.')]
@@ -471,6 +525,9 @@ describe SpellbinderRules do
                                 PlayerState.new(left_hand: '--W', right_hand: '---', health: 15,
                                                 player_name: 'second@example.com', scared: true)]
 
+      SpellbinderRules.copy_init_views(initial_battle_states)
+      SpellbinderRules.copy_init_views(expected_battle_states)
+
       expected_log = [ColoredText.new('green',
                                       'first@example.com casts Fear on second@example.com.'),
                       ColoredText.new('yellow',
@@ -490,6 +547,9 @@ describe SpellbinderRules do
       expected_battle_states_2 = [PlayerState.new(left_hand: 'SWD-', right_hand: '----', health: 15, player_name: 'first@example.com'),
                                   PlayerState.new(left_hand: '--W-', right_hand: '----', health: 15,
                                                   player_name: 'second@example.com')]
+
+      SpellbinderRules.copy_init_views(initial_battle_states_2)
+      SpellbinderRules.copy_init_views(expected_battle_states_2)
 
       expected_log_2 = [ColoredText.new('yellow',
                                         'second@example.com, out of fear, fails to make a C, D, F, or S.')]
@@ -514,6 +574,9 @@ describe SpellbinderRules do
                                 PlayerState.new(left_hand: '----', right_hand: '--WF', health: 15,
                                                 player_name: 'second@example.com', last_turn_anti_spelled: 3)]
 
+      SpellbinderRules.copy_init_views(initial_battle_states)
+      SpellbinderRules.copy_init_views(expected_battle_states)
+
       expected_log = [ColoredText.new('green',
                                       'first@example.com casts Anti Spell on second@example.com.')]
 
@@ -531,6 +594,9 @@ describe SpellbinderRules do
       expected_battle_states_2 = [PlayerState.new(left_hand: 'SPFP-', right_hand: '-----', health: 15, player_name: 'first@example.com'),
                                   PlayerState.new(left_hand: '-----', right_hand: '--WFP', health: 15,
                                                   player_name: 'second@example.com', last_turn_anti_spelled: 3)]
+
+      SpellbinderRules.copy_init_views(initial_battle_states_2)
+      SpellbinderRules.copy_init_views(expected_battle_states_2)
 
       expected_log_2 = [ColoredText.new('green',
                                         'second@example.com casts Shield on themself.'),
@@ -558,6 +624,9 @@ describe SpellbinderRules do
                                 PlayerState.new(left_hand: '---', right_hand: '-->', health: 15,
                                                 player_name: 'second@example.com')]
 
+      SpellbinderRules.copy_init_views(initial_battle_states)
+      SpellbinderRules.copy_init_views(expected_battle_states)
+
       expected_log = [ColoredText.new('green',
                                       'first@example.com casts Protection on themself.'),
                       ColoredText.new('green',
@@ -579,6 +648,9 @@ describe SpellbinderRules do
       expected_battle_states_2 = [PlayerState.new(left_hand: 'WWP-', right_hand: '----', health: 15, player_name: 'first@example.com', remaining_protection_turns: 1),
                                   PlayerState.new(left_hand: '----', right_hand: '-->>', health: 15,
                                                   player_name: 'second@example.com')]
+
+      SpellbinderRules.copy_init_views(initial_battle_states_2)
+      SpellbinderRules.copy_init_views(expected_battle_states_2)
 
       expected_log_2 = [ColoredText.new('green',
                                         'second@example.com stabs at first@example.com.'),
@@ -609,6 +681,9 @@ describe SpellbinderRules do
 
       result_3 = SpellbinderRules.calc_next_turn(initial_battle_states_3)
 
+      SpellbinderRules.copy_init_views(initial_battle_states_3)
+      SpellbinderRules.copy_init_views(expected_battle_states_3)
+
       expect(result_3[:log]).to eq(expected_log_3)
       expect(result_3[:next_states]).to eq(expected_battle_states_3)
 
@@ -619,6 +694,9 @@ describe SpellbinderRules do
       expected_battle_states_4 = [PlayerState.new(left_hand: 'WWP---', right_hand: '------', health: 14, player_name: 'first@example.com', remaining_protection_turns: 0),
                                   PlayerState.new(left_hand: '------', right_hand: '-->>>>', health: 15,
                                                   player_name: 'second@example.com')]
+
+      SpellbinderRules.copy_init_views(initial_battle_states_4)
+      SpellbinderRules.copy_init_views(expected_battle_states_4)
 
       expected_log_4 = [ColoredText.new('green',
                                         'second@example.com stabs at first@example.com.'),
@@ -645,6 +723,9 @@ describe SpellbinderRules do
                                 PlayerState.new(left_hand: '------', right_hand: '------', health: 15,
                                                 player_name: 'second@example.com', remaining_disease_turns: 6)]
 
+      SpellbinderRules.copy_init_views(initial_battle_states)
+      SpellbinderRules.copy_init_views(expected_battle_states)
+
       expected_log = [ColoredText.new('green',
                                       'first@example.com casts Disease on second@example.com.'),
                       ColoredText.new('red',
@@ -664,6 +745,9 @@ describe SpellbinderRules do
       expected_battle_states_2 = [PlayerState.new(left_hand: 'DSFFFC-', right_hand: '-----C-', health: 15, player_name: 'first@example.com'),
                                   PlayerState.new(left_hand: '-------', right_hand: '-------', health: 15,
                                                   player_name: 'second@example.com', remaining_disease_turns: 5)]
+
+      SpellbinderRules.copy_init_views(initial_battle_states_2)
+      SpellbinderRules.copy_init_views(expected_battle_states_2)
 
       expected_log_2 = [ColoredText.new('red',
                                         'second@example.com is a bit nauseous.')]
@@ -690,6 +774,7 @@ describe SpellbinderRules do
       expected_battle_states_final = [PlayerState.new(left_hand: 'DSFFFC------', right_hand: '-----C------', health: 15, player_name: 'first@example.com'),
                                       PlayerState.new(left_hand: '------------', right_hand: '------------',
                                                       health: -1, player_name: 'second@example.com', remaining_disease_turns: 0)]
+      SpellbinderRules.copy_init_views(expected_battle_states_final)
 
       expected_log_final = [ColoredText.new('red', 'second@example.com is on the verge of death.'),
                             ColoredText.new('red', 'second@example.com keels over and dies of illness.')]
@@ -711,6 +796,9 @@ describe SpellbinderRules do
       expected_battle_states = [PlayerState.new(left_hand: 'DWFFD', right_hand: '----D', health: 15, player_name: 'first@example.com'),
                                 PlayerState.new(left_hand: '-----', right_hand: '-----', health: 15,
                                                 player_name: 'second@example.com', remaining_blindness_turns: 3)]
+
+      SpellbinderRules.copy_init_views(initial_battle_states)
+      SpellbinderRules.copy_init_views(expected_battle_states)
 
       expected_log = [ColoredText.new('green',
                                       'first@example.com casts Blindness on second@example.com.'),

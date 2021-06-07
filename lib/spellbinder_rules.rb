@@ -9,7 +9,7 @@ module SpellbinderRules
   class PlayerState
     attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :amnesia, :confused, :charming_target,
                   :paralyzing_target, :scared, :last_turn_anti_spelled, :remaining_protection_turns, :remaining_disease_turns,
-                  :remaining_blindness_turns
+                  :remaining_blindness_turns, :other_view_left_hand, :other_view_right_hand
 
     alias amnesia? amnesia
     alias confused? confused
@@ -17,7 +17,8 @@ module SpellbinderRules
 
     def initialize(left_hand: '', right_hand: '', health: 15, player_name: '', orders: PlayerOrders.new,
                    amnesia: false, confused: false, charming_target: '', paralyzing_target: '', scared: false,
-                   last_turn_anti_spelled: -1, remaining_protection_turns: 0, remaining_disease_turns: -1, remaining_blindness_turns: 0)
+                   last_turn_anti_spelled: -1, remaining_protection_turns: 0, remaining_disease_turns: -1, remaining_blindness_turns: 0,
+                   other_view_left_hand: '', other_view_right_hand: '')
       @left_hand = left_hand
       @right_hand = right_hand
       @health = health
@@ -32,6 +33,8 @@ module SpellbinderRules
       @remaining_protection_turns = remaining_protection_turns
       @remaining_disease_turns = remaining_disease_turns
       @remaining_blindness_turns = remaining_blindness_turns
+      @other_view_left_hand = other_view_left_hand
+      @other_view_right_hand = other_view_right_hand
     end
 
     def ==(other)
@@ -45,7 +48,9 @@ module SpellbinderRules
                                    && last_turn_anti_spelled == other.last_turn_anti_spelled \
                                    && remaining_protection_turns == other.remaining_protection_turns \
                                    && remaining_disease_turns == other.remaining_disease_turns \
-                                   && remaining_blindness_turns == other.remaining_blindness_turns
+                                   && remaining_blindness_turns == other.remaining_blindness_turns \
+                                   && other_view_left_hand == other.other_view_left_hand \
+                                   && other_view_right_hand == other.other_view_right_hand
     end
   end
 
@@ -402,6 +407,11 @@ module SpellbinderRules
       mid_state.player_state.health = -1
     end
 
+    next_states[0].player_state.other_view_left_hand << next_states[1].player_state.orders.left_gesture
+    next_states[0].player_state.other_view_right_hand << next_states[1].player_state.orders.right_gesture
+    next_states[1].player_state.other_view_left_hand << next_states[0].player_state.orders.left_gesture
+    next_states[1].player_state.other_view_right_hand << next_states[0].player_state.orders.right_gesture
+
     next_states.each do |mid_state|
       mid_state.player_state.orders = PlayerOrders.new
     end
@@ -478,5 +488,12 @@ module SpellbinderRules
     right_hand = viable_gestures(player_state, left_hand: false)
     left_hand.end_with?(double_ending) && right_hand.end_with?(double_ending) \
       && (left_hand[0..left_hand.size - 1 - double_ending.size].end_with?(single_ending) || right_hand[0..right_hand.size - 1 - double_ending.size].end_with?(single_ending))
+  end
+
+  def self.copy_init_views(player_states)
+    player_states[0].other_view_left_hand = player_states[1].left_hand
+    player_states[0].other_view_right_hand = player_states[1].right_hand
+    player_states[1].other_view_left_hand = player_states[0].left_hand
+    player_states[1].other_view_right_hand = player_states[0].right_hand
   end
 end
