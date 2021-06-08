@@ -7,23 +7,26 @@ module SpellbinderRules
                                'W' => 'W', 'P' => 'P', '>' => '>', '-' => '-' }
 
   class PlayerState
-    attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :amnesia, :confused, :charming_target,
-                  :paralyzing_target, :scared, :last_turn_anti_spelled, :remaining_protection_turns, :remaining_disease_turns,
-                  :remaining_blindness_turns, :other_view_left_hand, :other_view_right_hand
+    attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :other_view_left_hand, :other_view_right_hand,
+                  :amnesia, :confused, :charming_target, :paralyzing_target, :scared, :last_turn_anti_spelled,
+                  :remaining_protection_turns, :remaining_disease_turns, :remaining_blindness_turns, :remaining_invis_turns
 
     alias amnesia? amnesia
     alias confused? confused
     alias scared? scared
 
     def initialize(left_hand: '', right_hand: '', health: 15, player_name: '', orders: PlayerOrders.new,
+                   other_view_left_hand: '', other_view_right_hand: '',
                    amnesia: false, confused: false, charming_target: '', paralyzing_target: '', scared: false,
                    last_turn_anti_spelled: -1, remaining_protection_turns: 0, remaining_disease_turns: -1, remaining_blindness_turns: 0,
-                   other_view_left_hand: '', other_view_right_hand: '')
+                   remaining_invis_turns: 0)
       @left_hand = left_hand
       @right_hand = right_hand
       @health = health
       @player_name = player_name
       @orders = orders
+      @other_view_left_hand = other_view_left_hand
+      @other_view_right_hand = other_view_right_hand
       @amnesia = amnesia
       @confused = confused
       @charming_target = charming_target
@@ -33,14 +36,15 @@ module SpellbinderRules
       @remaining_protection_turns = remaining_protection_turns
       @remaining_disease_turns = remaining_disease_turns
       @remaining_blindness_turns = remaining_blindness_turns
-      @other_view_left_hand = other_view_left_hand
-      @other_view_right_hand = other_view_right_hand
+      @remaining_invis_turns = remaining_invis_turns
     end
 
     def ==(other)
       left_hand == other.left_hand && right_hand == other.right_hand && health == other.health \
-                                   && orders == other.orders \
                                    && player_name == other.player_name \
+                                   && orders == other.orders \
+                                   && other_view_left_hand == other.other_view_left_hand \
+                                   && other_view_right_hand == other.other_view_right_hand \
                                    && amnesia? == other.amnesia? \
                                    && charming_target == other.charming_target \
                                    && paralyzing_target == other.paralyzing_target \
@@ -49,20 +53,23 @@ module SpellbinderRules
                                    && remaining_protection_turns == other.remaining_protection_turns \
                                    && remaining_disease_turns == other.remaining_disease_turns \
                                    && remaining_blindness_turns == other.remaining_blindness_turns \
-                                   && other_view_left_hand == other.other_view_left_hand \
-                                   && other_view_right_hand == other.other_view_right_hand
+                                   && remaining_invis_turns == other.remaining_invis_turns
     end
   end
 
   # Holds temporary data for the middle of battle, which won't need to be stored
   # afterwards
   class MidPlayerState
-    attr_accessor :player_state, :shielded
+    attr_accessor :player_state, :shielded, :stopped_being_blind, :stopped_being_invisible
     alias shielded? shielded
+    alias stopped_being_blind? stopped_being_blind
+    alias stopped_being_invisible? stopped_being_invisible
 
     def initialize(player_state)
       @player_state = player_state
       @shielded = false
+      @stopped_being_blind = false
+      @stopped_being_invisible = false
     end
   end
 
@@ -285,9 +292,14 @@ module SpellbinderRules
 
         mid_state.player_state.remaining_blindness_turns -= 1
 
-        if mid_state.player_state.remaining_blindness_turns <= 0
-          log.push(ColoredText.new('dark-blue', "#{mid_state.player_state.player_name}'s eyes begin working again."))
-        end
+        mid_state.stopped_being_blind = true if mid_state.player_state.remaining_blindness_turns <= 0
+      elsif other_state.player_state.remaining_invis_turns > 0
+        mid_state.player_state.other_view_left_hand << '?'
+        mid_state.player_state.other_view_right_hand << '?'
+
+        other_state.player_state.remaining_invis_turns -= 1
+
+        other_state.stopped_being_invisible = true if other_state.player_state.remaining_invis_turns <= 0
       else
         mid_state.player_state.other_view_left_hand << other_state.player_state.orders.left_gesture
         mid_state.player_state.other_view_right_hand << other_state.player_state.orders.right_gesture
@@ -303,6 +315,8 @@ module SpellbinderRules
       elsif double_ends_with?(mid_state.player_state, 'DWFF', 'D') ||
             double_ends_with?(mid_state.player_state, 'DFWF', 'D')
         SpellOrder.new(:blindness, mid_state, find_other_warlock(mid_state, next_states))
+      elsif double_ends_with?(mid_state.player_state, 'PP', 'WS')
+        SpellOrder.new(:invisibility, mid_state, mid_state)
       else
         left_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: true)
         right_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: false)
@@ -332,6 +346,8 @@ module SpellbinderRules
 
       cast_output.text << if misses_from_blindness?(spell_order)
                             ', but misses due to blindness.'
+                          elsif misses_from_invisibility?(spell_order)
+                            ', but misses due to invisibility.'
                           else
                             '.'
                           end
@@ -339,7 +355,7 @@ module SpellbinderRules
       log.push(cast_output)
     end
 
-    spells_to_cast.reject! { |sp| misses_from_blindness?(sp) }
+    spells_to_cast.reject! { |sp| misses_from_blindness?(sp) || misses_from_invisibility?(sp) }
 
     # Evaluate shield spells first
     spells_to_cast.each do |spell_order|
@@ -429,6 +445,20 @@ module SpellbinderRules
         target.player_state.remaining_blindness_turns = 3
 
         log.push(ColoredText.new('yellow', "#{target.player_state.player_name}'s sight begins to dim."))
+      when :invisibility
+        target.player_state.remaining_invis_turns = 3
+
+        log.push(ColoredText.new('white', "There is a flash, and #{target.player_state.player_name} disappears!"))
+      end
+    end
+
+    next_states.each do |mid_state|
+      if mid_state.stopped_being_blind?
+        log.push(ColoredText.new('dark-blue', "#{mid_state.player_state.player_name}'s eyes begin working again."))
+      end
+
+      if mid_state.stopped_being_invisible?
+        log.push(ColoredText.new('white', "#{mid_state.player_state.player_name} fades back into visibility."))
       end
     end
 
@@ -528,5 +558,9 @@ module SpellbinderRules
 
   def self.misses_from_blindness?(spell_order)
     spell_order.caster.player_state.remaining_blindness_turns > 0 && spell_order.target != spell_order.caster
+  end
+
+  def self.misses_from_invisibility?(spell_order)
+    spell_order.target.player_state.remaining_invis_turns > 0 && spell_order.target != spell_order.caster
   end
 end

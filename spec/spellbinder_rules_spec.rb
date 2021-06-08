@@ -808,6 +808,8 @@ describe SpellbinderRules do
       result = SpellbinderRules.calc_next_turn(initial_battle_states)
 
       expect(result[:log]).to eq(expected_log)
+      expect(result[:next_states][0]).to eq(expected_battle_states[0])
+      expect(result[:next_states][1]).to eq(expected_battle_states[1])
       expect(result[:next_states]).to eq(expected_battle_states)
 
       initial_battle_states_2 = expected_battle_states.dup
@@ -859,6 +861,91 @@ describe SpellbinderRules do
       expected_battle_states_final[1].other_view_right_hand = '----D???'
 
       expected_log_final = [ColoredText.new('dark-blue', "second@example.com's eyes begin working again.")]
+
+      expect(resulting_log).to eq(expected_log_final)
+      expect(changing_state[0]).to eq(expected_battle_states_final[0])
+      expect(changing_state[1]).to eq(expected_battle_states_final[1])
+    end
+  end
+
+  describe 'Casting "Invisibility"' do
+    it 'prevents the other warlock from seeing or targeting the caster' do
+      initial_battle_states = [PlayerState.new(left_hand: 'PPW',
+                                               right_hand: '--W', player_name: 'first@example.com',
+                                               orders: PlayerOrders.new(left_gesture: 'S', right_gesture: 'S')),
+                               PlayerState.new(left_hand: '---',
+                                               right_hand: '---', player_name: 'second@example.com',
+                                               orders: PlayerOrders.new(left_gesture: '-', right_gesture: '-'))]
+
+      expected_battle_states = [PlayerState.new(left_hand: 'PPWS', right_hand: '--WS', health: 15,
+                                                player_name: 'first@example.com', remaining_invis_turns: 3),
+                                PlayerState.new(left_hand: '----', right_hand: '----', health: 15,
+                                                player_name: 'second@example.com')]
+
+      SpellbinderRules.copy_init_views(initial_battle_states)
+      SpellbinderRules.copy_init_views(expected_battle_states)
+
+      expected_log = [ColoredText.new('green',
+                                      'first@example.com casts Invisibility on themself.'),
+                      ColoredText.new('white',
+                                      'There is a flash, and first@example.com disappears!')]
+
+      result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+      expect(result[:log]).to eq(expected_log)
+      expect(result[:next_states]).to eq(expected_battle_states)
+
+      initial_battle_states_2 = expected_battle_states.dup
+      initial_battle_states_2[0].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
+      initial_battle_states_2[1].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '>')
+
+      SpellbinderRules.copy_init_views(initial_battle_states_2)
+
+      expected_battle_states_2 = [PlayerState.new(left_hand: 'PPWS-', right_hand: '--WS-', health: 15,
+                                                  player_name: 'first@example.com', remaining_invis_turns: 2),
+                                  PlayerState.new(left_hand: '-----', right_hand: '---->', health: 15,
+                                                  player_name: 'second@example.com')]
+      expected_battle_states_2[0].other_view_left_hand = expected_battle_states[1].left_hand
+      expected_battle_states_2[0].other_view_right_hand = expected_battle_states[1].right_hand
+      expected_battle_states_2[1].other_view_left_hand = 'PPWS?'
+      expected_battle_states_2[1].other_view_right_hand = '--WS?'
+
+      expected_log_2 = [ColoredText.new('green',
+                                        'second@example.com stabs at first@example.com, but misses due to invisibility.')]
+
+      result_2 = SpellbinderRules.calc_next_turn(initial_battle_states_2)
+
+      expect(result_2[:log]).to eq(expected_log_2)
+      expect(result_2[:next_states][0]).to eq(expected_battle_states_2[0])
+      expect(result_2[:next_states][1]).to eq(expected_battle_states_2[1])
+      expect(result_2[:next_states]).to eq(expected_battle_states_2)
+
+      changing_state = expected_battle_states_2.dup
+      resulting_log = []
+      3.upto(4) do |n|
+        changing_state[0].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
+        changing_state[1].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
+
+        result_n = SpellbinderRules.calc_next_turn(changing_state)
+
+        resulting_log = result_n[:log]
+
+        expect(result_n[:next_states][1].left_hand).to eq(changing_state[1].left_hand + '-')
+
+        expect(result_n[:next_states][0].remaining_invis_turns).to eq(4 - n)
+
+        changing_state = result_n[:next_states]
+      end
+
+      expected_battle_states_final = [PlayerState.new(left_hand: 'PPWS---', right_hand: '--WS---', health: 15, player_name: 'first@example.com'),
+                                      PlayerState.new(left_hand: '-------', right_hand: '---->--', health: 15,
+                                                      player_name: 'second@example.com')]
+      expected_battle_states_final[0].other_view_left_hand = expected_battle_states_final[1].left_hand
+      expected_battle_states_final[0].other_view_right_hand = expected_battle_states_final[1].right_hand
+      expected_battle_states_final[1].other_view_left_hand = 'PPWS???'
+      expected_battle_states_final[1].other_view_right_hand = '--WS???'
+
+      expected_log_final = [ColoredText.new('white', "first@example.com fades back into visibility.")]
 
       expect(resulting_log).to eq(expected_log_final)
       expect(changing_state[0]).to eq(expected_battle_states_final[0])
