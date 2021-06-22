@@ -953,6 +953,61 @@ describe SpellbinderRules do
     end
   end
 
+  describe 'Casting "Haste"' do
+    it 'in effect slows down the other warlock\'s turns' do
+      initial_battle_states = [PlayerState.new(left_hand: 'PWPWW',
+                                               right_hand: '-----', player_name: 'first@example.com',
+                                               orders: PlayerOrders.new(left_gesture: 'C', right_gesture: 'C')),
+                               PlayerState.new(left_hand: '-----',
+                                               right_hand: '-----', player_name: 'second@example.com',
+                                               orders: PlayerOrders.new(left_gesture: '-', right_gesture: '-'))]
+
+      expected_battle_states = [PlayerState.new(left_hand: 'PWPWWC', right_hand: '-----C', health: 15,
+                                                player_name: 'first@example.com', remaining_haste_turns: 3),
+                                PlayerState.new(left_hand: '------', right_hand: '------', health: 15,
+                                                player_name: 'second@example.com')]
+
+      SpellbinderRules.copy_init_views(initial_battle_states)
+      SpellbinderRules.copy_init_views(expected_battle_states)
+
+      expected_log = [ColoredText.new('green',
+                                      'first@example.com casts Haste on themself.'),
+                      ColoredText.new('light-blue',
+                                      'first@example.com speeds up!')]
+
+      result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+      expect(result[:log]).to eq(expected_log)
+      expect(result[:next_states]).to eq(expected_battle_states)
+
+      initial_battle_states_2 = expected_battle_states.dup
+      initial_battle_states_2[0].orders = PlayerOrders.new(left_gesture: 'P', right_gesture: 'W')
+      initial_battle_states_2[0].haste_orders = PlayerOrders.new(left_gesture: 'S', right_gesture: 'P')
+      initial_battle_states_2[1].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
+
+      expected_battle_states_2 = [PlayerState.new(left_hand: 'PWPWWCPS', right_hand: '-----CWP', health: 15, player_name: 'first@example.com', remaining_haste_turns: 2),
+                                PlayerState.new(left_hand: '------- ', right_hand: '------- ', health: 15, player_name: 'second@example.com')]
+
+      SpellbinderRules.copy_init_views(initial_battle_states_2)
+      SpellbinderRules.copy_init_views(expected_battle_states_2)
+
+      expected_log_2 = [
+        ColoredText.new('green', 'first@example.com casts Shield on themself.'),
+        ColoredText.new('yellow', 'first@example.com is hastened, so he sneaks in an extra set of gestures.'),
+        ColoredText.new('green', 'first@example.com casts Shield on themself.'), # Second Shield is cast intentionally
+        ColoredText.new('light-blue', 'first@example.com is covered in a shimmering shield.')
+      ]
+
+      result_2 = SpellbinderRules.calc_next_turn(initial_battle_states_2)
+
+      expect(result_2[:next_states][0]).to eq(expected_battle_states_2[0])
+      expect(result_2[:next_states][1]).to eq(expected_battle_states_2[1])
+      expect(result_2[:next_states]).to eq(expected_battle_states_2)
+
+      expect(result_2[:log]).to eq(expected_log_2)
+    end
+  end
+
   describe '.random_gesture' do
     it 'can be mocked (stubbed?) correctly' do
       allow(SpellbinderRules).to receive(:random_gesture) { 'P' }

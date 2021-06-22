@@ -7,24 +7,26 @@ module SpellbinderRules
                                'W' => 'W', 'P' => 'P', '>' => '>', '-' => '-' }
 
   class PlayerState
-    attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :other_view_left_hand, :other_view_right_hand,
+    attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :haste_orders, :other_view_left_hand, :other_view_right_hand,
                   :amnesia, :confused, :charming_target, :paralyzing_target, :scared, :last_turn_anti_spelled,
-                  :remaining_protection_turns, :remaining_disease_turns, :remaining_blindness_turns, :remaining_invis_turns
+                  :remaining_protection_turns, :remaining_disease_turns, :remaining_blindness_turns, :remaining_invis_turns,
+                  :remaining_haste_turns
 
     alias amnesia? amnesia
     alias confused? confused
     alias scared? scared
 
     def initialize(left_hand: '', right_hand: '', health: 15, player_name: '', orders: PlayerOrders.new,
-                   other_view_left_hand: '', other_view_right_hand: '',
+                   haste_orders: nil, other_view_left_hand: '', other_view_right_hand: '',
                    amnesia: false, confused: false, charming_target: '', paralyzing_target: '', scared: false,
                    last_turn_anti_spelled: -1, remaining_protection_turns: 0, remaining_disease_turns: -1, remaining_blindness_turns: 0,
-                   remaining_invis_turns: 0)
+                   remaining_invis_turns: 0, remaining_haste_turns: 0)
       @left_hand = left_hand
       @right_hand = right_hand
       @health = health
       @player_name = player_name
       @orders = orders
+      @haste_orders = haste_orders
       @other_view_left_hand = other_view_left_hand
       @other_view_right_hand = other_view_right_hand
       @amnesia = amnesia
@@ -37,12 +39,14 @@ module SpellbinderRules
       @remaining_disease_turns = remaining_disease_turns
       @remaining_blindness_turns = remaining_blindness_turns
       @remaining_invis_turns = remaining_invis_turns
+      @remaining_haste_turns = remaining_haste_turns
     end
 
     def ==(other)
       left_hand == other.left_hand && right_hand == other.right_hand && health == other.health \
                                    && player_name == other.player_name \
                                    && orders == other.orders \
+                                   && haste_orders == other.haste_orders \
                                    && other_view_left_hand == other.other_view_left_hand \
                                    && other_view_right_hand == other.other_view_right_hand \
                                    && amnesia? == other.amnesia? \
@@ -53,7 +57,8 @@ module SpellbinderRules
                                    && remaining_protection_turns == other.remaining_protection_turns \
                                    && remaining_disease_turns == other.remaining_disease_turns \
                                    && remaining_blindness_turns == other.remaining_blindness_turns \
-                                   && remaining_invis_turns == other.remaining_invis_turns
+                                   && remaining_invis_turns == other.remaining_invis_turns \
+                                   && remaining_haste_turns == other.remaining_haste_turns
     end
   end
 
@@ -164,6 +169,8 @@ module SpellbinderRules
 
       mid_state = MidPlayerState.new(underlying_state)
     end
+    unhastened_mid_states = []
+    spells_to_cast = []
 
     # Handle enchantment effects which mess with gestures/change other enchantment
     # effect state
@@ -282,77 +289,41 @@ module SpellbinderRules
     end
 
     # Update views of other hands
-    [[0, 1], [1, 0]].each do |pair|
-      mid_state = next_states[pair[0]]
-      other_state = next_states[pair[1]]
+    add_most_recent_hand_views(next_states)
 
-      if mid_state.player_state.remaining_blindness_turns > 0
-        mid_state.player_state.other_view_left_hand << '?'
-        mid_state.player_state.other_view_right_hand << '?'
+    # Determine which spells are being cast and at whom, adding their relevant messages
+    # to the log
+    next_states.each do |mid_state|
+      parse_spells_for(mid_state, log, next_states, spells_to_cast)
 
-        mid_state.player_state.remaining_blindness_turns -= 1
-
-        mid_state.stopped_being_blind = true if mid_state.player_state.remaining_blindness_turns <= 0
-      elsif other_state.player_state.remaining_invis_turns > 0
-        mid_state.player_state.other_view_left_hand << '?'
-        mid_state.player_state.other_view_right_hand << '?'
-
-        other_state.player_state.remaining_invis_turns -= 1
-
-        other_state.stopped_being_invisible = true if other_state.player_state.remaining_invis_turns <= 0
+      # Handle the effects of haste
+      if mid_state.player_state.remaining_haste_turns <= 0
+        unhastened_mid_states.push(mid_state)
       else
-        mid_state.player_state.other_view_left_hand << other_state.player_state.orders.left_gesture
-        mid_state.player_state.other_view_right_hand << other_state.player_state.orders.right_gesture
+        if mid_state.player_state.haste_orders.nil?
+          raise ArgumentError,
+                "#{mid_state.player_state.player_name}'s haste orders are nil, but he has #{mid_state.player_state.remaining_haste_turns} remaining haste turns."
+        end
+
+        log.push(ColoredText.new('yellow',
+                                 "#{mid_state.player_state.player_name} is hastened, so he sneaks in an extra set of gestures."))
+
+        mid_state.player_state.left_hand.concat(mid_state.player_state.haste_orders.left_gesture)
+        mid_state.player_state.right_hand.concat(mid_state.player_state.haste_orders.right_gesture)
+
+        mid_state.player_state.remaining_haste_turns -= 1
+
+        parse_spells_for(mid_state, log, next_states, spells_to_cast)
       end
     end
 
-    # Determine which spells are being cast and at whom
-    spells_to_cast = next_states.map do |mid_state|
-      if both_hands_end_with?(mid_state.player_state, 'P')
-        SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states))
-      elsif double_ends_with?(mid_state.player_state, 'DSFFF', 'C')
-        SpellOrder.new(:disease, mid_state, find_other_warlock(mid_state, next_states))
-      elsif double_ends_with?(mid_state.player_state, 'DWFF', 'D') ||
-            double_ends_with?(mid_state.player_state, 'DFWF', 'D')
-        SpellOrder.new(:blindness, mid_state, find_other_warlock(mid_state, next_states))
-      elsif double_ends_with?(mid_state.player_state, 'PP', 'WS')
-        SpellOrder.new(:invisibility, mid_state, mid_state)
-      else
-        left_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: true)
-        right_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: false)
-        [left_spell_order, right_spell_order]
+    if unhastened_mid_states.size != next_states.size
+      unhastened_mid_states.each do |mid_state|
+        mid_state.player_state.left_hand.concat(' ')
+        mid_state.player_state.right_hand.concat(' ')
       end
-    end.flatten.reject { |spell_order| spell_order.nil? }
 
-    # Print that these spells are being cast.
-    spells_to_cast.each do |spell_order|
-      mid_state = spell_order.caster
-      target = spell_order.target
-
-      cast_output = case spell_order.spell
-                    when :surrender
-                    # Nothing happens here
-                    when :stab
-                      ColoredText.new('green',
-                                      "#{mid_state.player_state.player_name} stabs at #{display_target(mid_state,
-                                                                                                       target)}")
-                    else
-                      ColoredText.new('green',
-                                      "#{mid_state.player_state.player_name} casts #{find_spell_name(spell_order.spell)} on #{display_target(mid_state,
-                                                                                                                                             target)}")
-                    end
-
-      next if cast_output.nil?
-
-      cast_output.text << if misses_from_blindness?(spell_order)
-                            ', but misses due to blindness.'
-                          elsif misses_from_invisibility?(spell_order)
-                            ', but misses due to invisibility.'
-                          else
-                            '.'
-                          end
-
-      log.push(cast_output)
+      add_most_recent_hand_views(next_states)
     end
 
     spells_to_cast.reject! { |sp| misses_from_blindness?(sp) || misses_from_invisibility?(sp) }
@@ -449,6 +420,10 @@ module SpellbinderRules
         target.player_state.remaining_invis_turns = 3
 
         log.push(ColoredText.new('white', "There is a flash, and #{target.player_state.player_name} disappears!"))
+      when :haste
+        target.player_state.remaining_haste_turns = 3
+
+        log.push(ColoredText.new('light-blue', "#{target.player_state.player_name} speeds up!"))
       end
     end
 
@@ -472,6 +447,7 @@ module SpellbinderRules
 
     next_states.each do |mid_state|
       mid_state.player_state.orders = PlayerOrders.new
+      mid_state.player_state.haste_orders = nil
     end
 
     {
@@ -562,5 +538,96 @@ module SpellbinderRules
 
   def self.misses_from_invisibility?(spell_order)
     spell_order.target.player_state.remaining_invis_turns > 0 && spell_order.target != spell_order.caster
+  end
+
+  # TODO(Chris): Refactor sufficiently similar code
+  # FIXME(Chris): Properly handle spaces in left_hand or right_hand
+  def self.parse_spells_for(mid_state, log, next_states, spells_to_cast)
+    if both_hands_end_with?(mid_state.player_state, 'P')
+      spells_to_cast.push(SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states)))
+      log_casting(log, spells_to_cast[-1])
+    elsif double_ends_with?(mid_state.player_state, 'DSFFF', 'C')
+      spells_to_cast.push(SpellOrder.new(:disease, mid_state, find_other_warlock(mid_state, next_states)))
+      log_casting(log, spells_to_cast[-1])
+    elsif double_ends_with?(mid_state.player_state, 'DWFF', 'D') ||
+          double_ends_with?(mid_state.player_state, 'DFWF', 'D')
+      spells_to_cast.push(SpellOrder.new(:blindness, mid_state, find_other_warlock(mid_state, next_states)))
+      log_casting(log, spells_to_cast[-1])
+    elsif double_ends_with?(mid_state.player_state, 'PP', 'WS')
+      spells_to_cast.push(SpellOrder.new(:invisibility, mid_state, mid_state))
+      log_casting(log, spells_to_cast[-1])
+    elsif double_ends_with?(mid_state.player_state, 'PWPWW', 'C')
+      spells_to_cast.push(SpellOrder.new(:haste, mid_state, mid_state))
+      log_casting(log, spells_to_cast[-1])
+    else
+      left_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: true)
+      right_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: false)
+
+      unless left_spell_order.nil?
+        spells_to_cast.push(left_spell_order)
+        log_casting(log, spells_to_cast[-1])
+      end
+
+      unless right_spell_order.nil?
+        spells_to_cast.push(right_spell_order)
+        log_casting(log, spells_to_cast[-1])
+      end
+    end
+  end
+
+  def self.add_most_recent_hand_views(next_states)
+    [[0, 1], [1, 0]].each do |pair|
+      mid_state = next_states[pair[0]]
+      other_state = next_states[pair[1]]
+
+      if mid_state.player_state.remaining_blindness_turns > 0
+        mid_state.player_state.other_view_left_hand << '?'
+        mid_state.player_state.other_view_right_hand << '?'
+
+        mid_state.player_state.remaining_blindness_turns -= 1
+
+        mid_state.stopped_being_blind = true if mid_state.player_state.remaining_blindness_turns <= 0
+      elsif other_state.player_state.remaining_invis_turns > 0
+        mid_state.player_state.other_view_left_hand << '?'
+        mid_state.player_state.other_view_right_hand << '?'
+
+        other_state.player_state.remaining_invis_turns -= 1
+
+        other_state.stopped_being_invisible = true if other_state.player_state.remaining_invis_turns <= 0
+      else
+        mid_state.player_state.other_view_left_hand << other_state.player_state.left_hand[-1]
+        mid_state.player_state.other_view_right_hand << other_state.player_state.right_hand[-1]
+      end
+    end
+  end
+
+  def self.log_casting(log, spell_order)
+    mid_state = spell_order.caster
+    target = spell_order.target
+
+    cast_output = case spell_order.spell
+                  when :surrender
+                  # Nothing happens here
+                  when :stab
+                    ColoredText.new('green',
+                                    "#{mid_state.player_state.player_name} stabs at #{display_target(mid_state,
+                                                                                                     target)}")
+                  else
+                    ColoredText.new('green',
+                                    "#{mid_state.player_state.player_name} casts #{find_spell_name(spell_order.spell)} on #{display_target(mid_state,
+                                                                                                                                           target)}")
+                  end
+
+    return if cast_output.nil?
+
+    cast_output.text << if misses_from_blindness?(spell_order)
+                          ', but misses due to blindness.'
+                        elsif misses_from_invisibility?(spell_order)
+                          ', but misses due to invisibility.'
+                        else
+                          '.'
+                        end
+
+    log.push(cast_output)
   end
 end
