@@ -139,6 +139,25 @@ module SpellbinderRules
     end
   end
 
+  class DoubleHandSpellInfo
+    attr_accessor :single_hand_gestures, :double_hands_gestures, :symbol, :default_target
+
+    def initialize(single_hand_gestures, double_hands_gestures, symbol, default_target)
+      @single_hand_gestures = single_hand_gestures
+      @double_hands_gestures = double_hands_gestures
+      @symbol = symbol
+      @default_target = default_target
+    end
+
+    RECORDS = [
+      DoubleHandSpellInfo.new('DSFFF', 'C', :disease, :default_other),
+      DoubleHandSpellInfo.new('DWFF', 'D', :blindness, :default_other),
+      DoubleHandSpellInfo.new('DFWF', 'D', :blindness, :default_other), # Is Blindness just like spell above
+      DoubleHandSpellInfo.new('PP', 'WS', :invisibility, :default_self),
+      DoubleHandSpellInfo.new('PWPWW', 'C', :haste, :default_self)
+    ]
+  end
+
   class SingleHandSpellInfo
     attr_accessor :gestures, :symbol, :default_target
 
@@ -540,24 +559,43 @@ module SpellbinderRules
     spell_order.target.player_state.remaining_invis_turns > 0 && spell_order.target != spell_order.caster
   end
 
-  # TODO(Chris): Refactor sufficiently similar code
+  # TODO(Chris): Finish this refactor method
+  def self.parse_double_hand_spells(mid_state, next_states)
+    viable_left_hand = viable_gestures(mid_state.player_state, left_hand: true)
+    viable_right_hand = viable_gestures(mid_state.player_state, left_hand: false)
+
+    DoubleHandSpellInfo::RECORDS.each do |info|
+      single_size = info.single_hand_gestures.size
+      double_size = info.double_hands_gestures.size
+
+      if single_size + double_size > viable_left_hand.size
+        next
+      end
+
+      sub_left_hand = viable_left_hand[viable_left_hand.size - (single_size + double_size), single_size]
+      sub_right_hand = viable_right_hand[viable_right_hand.size - (single_size + double_size), single_size]
+
+      if (sub_left_hand.end_with?(info.single_hand_gestures) || sub_right_hand.end_with?(info.single_hand_gestures)) &&
+        viable_left_hand.end_with?(info.double_hands_gestures) && viable_right_hand.end_with?(info.double_hands_gestures)
+        case info.default_target
+        when :default_other
+          return SpellOrder.new(info.symbol, mid_state, find_other_warlock(mid_state, next_states))
+        when :default_self
+          return SpellOrder.new(info.symbol, mid_state, mid_state)
+        end
+      end
+    end
+
+    return nil
+  end
+
   # FIXME(Chris): Properly handle spaces in left_hand or right_hand
   def self.parse_spells_for(mid_state, log, next_states, spells_to_cast)
     if both_hands_end_with?(mid_state.player_state, 'P')
       spells_to_cast.push(SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states)))
       log_casting(log, spells_to_cast[-1])
-    elsif double_ends_with?(mid_state.player_state, 'DSFFF', 'C')
-      spells_to_cast.push(SpellOrder.new(:disease, mid_state, find_other_warlock(mid_state, next_states)))
-      log_casting(log, spells_to_cast[-1])
-    elsif double_ends_with?(mid_state.player_state, 'DWFF', 'D') ||
-          double_ends_with?(mid_state.player_state, 'DFWF', 'D')
-      spells_to_cast.push(SpellOrder.new(:blindness, mid_state, find_other_warlock(mid_state, next_states)))
-      log_casting(log, spells_to_cast[-1])
-    elsif double_ends_with?(mid_state.player_state, 'PP', 'WS')
-      spells_to_cast.push(SpellOrder.new(:invisibility, mid_state, mid_state))
-      log_casting(log, spells_to_cast[-1])
-    elsif double_ends_with?(mid_state.player_state, 'PWPWW', 'C')
-      spells_to_cast.push(SpellOrder.new(:haste, mid_state, mid_state))
+    elsif (spell_order = parse_double_hand_spells(mid_state, next_states))
+      spells_to_cast.push(spell_order)
       log_casting(log, spells_to_cast[-1])
     else
       left_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: true)
