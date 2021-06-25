@@ -533,7 +533,7 @@ module SpellbinderRules
 
   def self.viable_gestures(player_state, left_hand: true)
     hand = left_hand ? player_state.left_hand : player_state.right_hand
-    hand[player_state.last_turn_anti_spelled + 1..hand.size]
+    hand[player_state.last_turn_anti_spelled + 1..hand.size].gsub(' ', '')
   end
 
   def self.double_ends_with?(player_state, single_ending, double_ending)
@@ -568,28 +568,25 @@ module SpellbinderRules
       single_size = info.single_hand_gestures.size
       double_size = info.double_hands_gestures.size
 
-      if single_size + double_size > viable_left_hand.size
-        next
-      end
+      next if single_size + double_size > viable_left_hand.size
 
       sub_left_hand = viable_left_hand[viable_left_hand.size - (single_size + double_size), single_size]
       sub_right_hand = viable_right_hand[viable_right_hand.size - (single_size + double_size), single_size]
 
-      if (sub_left_hand.end_with?(info.single_hand_gestures) || sub_right_hand.end_with?(info.single_hand_gestures)) &&
-        viable_left_hand.end_with?(info.double_hands_gestures) && viable_right_hand.end_with?(info.double_hands_gestures)
-        case info.default_target
-        when :default_other
-          return SpellOrder.new(info.symbol, mid_state, find_other_warlock(mid_state, next_states))
-        when :default_self
-          return SpellOrder.new(info.symbol, mid_state, mid_state)
-        end
+      next unless (sub_left_hand.end_with?(info.single_hand_gestures) || sub_right_hand.end_with?(info.single_hand_gestures)) &&
+                  viable_left_hand.end_with?(info.double_hands_gestures) && viable_right_hand.end_with?(info.double_hands_gestures)
+
+      case info.default_target
+      when :default_other
+        return SpellOrder.new(info.symbol, mid_state, find_other_warlock(mid_state, next_states))
+      when :default_self
+        return SpellOrder.new(info.symbol, mid_state, mid_state)
       end
     end
 
-    return nil
+    nil
   end
 
-  # FIXME(Chris): Properly handle spaces in left_hand or right_hand
   def self.parse_spells_for(mid_state, log, next_states, spells_to_cast)
     if both_hands_end_with?(mid_state.player_state, 'P')
       spells_to_cast.push(SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states)))

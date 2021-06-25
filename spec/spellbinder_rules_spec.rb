@@ -945,7 +945,7 @@ describe SpellbinderRules do
       expected_battle_states_final[1].other_view_left_hand = 'PPWS???'
       expected_battle_states_final[1].other_view_right_hand = '--WS???'
 
-      expected_log_final = [ColoredText.new('white', "first@example.com fades back into visibility.")]
+      expected_log_final = [ColoredText.new('white', 'first@example.com fades back into visibility.')]
 
       expect(resulting_log).to eq(expected_log_final)
       expect(changing_state[0]).to eq(expected_battle_states_final[0])
@@ -959,12 +959,12 @@ describe SpellbinderRules do
                                                right_hand: '-----', player_name: 'first@example.com',
                                                orders: PlayerOrders.new(left_gesture: 'C', right_gesture: 'C')),
                                PlayerState.new(left_hand: '-----',
-                                               right_hand: '-----', player_name: 'second@example.com',
-                                               orders: PlayerOrders.new(left_gesture: '-', right_gesture: '-'))]
+                                               right_hand: '----W', player_name: 'second@example.com',
+                                               orders: PlayerOrders.new(left_gesture: '-', right_gesture: 'F'))]
 
       expected_battle_states = [PlayerState.new(left_hand: 'PWPWWC', right_hand: '-----C', health: 15,
                                                 player_name: 'first@example.com', remaining_haste_turns: 3),
-                                PlayerState.new(left_hand: '------', right_hand: '------', health: 15,
+                                PlayerState.new(left_hand: '------', right_hand: '----WF', health: 15,
                                                 player_name: 'second@example.com')]
 
       SpellbinderRules.copy_init_views(initial_battle_states)
@@ -983,10 +983,11 @@ describe SpellbinderRules do
       initial_battle_states_2 = expected_battle_states.dup
       initial_battle_states_2[0].orders = PlayerOrders.new(left_gesture: 'P', right_gesture: 'W')
       initial_battle_states_2[0].haste_orders = PlayerOrders.new(left_gesture: 'S', right_gesture: 'P')
-      initial_battle_states_2[1].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
+      initial_battle_states_2[1].orders = PlayerOrders.new(left_gesture: '-', right_gesture: 'P')
 
-      expected_battle_states_2 = [PlayerState.new(left_hand: 'PWPWWCPS', right_hand: '-----CWP', health: 15, player_name: 'first@example.com', remaining_haste_turns: 2),
-                                PlayerState.new(left_hand: '------- ', right_hand: '------- ', health: 15, player_name: 'second@example.com')]
+      expected_battle_states_2 = [PlayerState.new(left_hand: 'PWPWWCPS', right_hand: '-----CWP', health: 13, player_name: 'first@example.com', remaining_haste_turns: 2),
+                                  PlayerState.new(left_hand: '------- ', right_hand: '----WFP ', health: 15,
+                                                  player_name: 'second@example.com')]
 
       SpellbinderRules.copy_init_views(initial_battle_states_2)
       SpellbinderRules.copy_init_views(expected_battle_states_2)
@@ -995,7 +996,10 @@ describe SpellbinderRules do
         ColoredText.new('green', 'first@example.com casts Shield on themself.'),
         ColoredText.new('yellow', 'first@example.com is hastened, so he sneaks in an extra set of gestures.'),
         ColoredText.new('green', 'first@example.com casts Shield on themself.'), # Second Shield is cast intentionally
-        ColoredText.new('light-blue', 'first@example.com is covered in a shimmering shield.')
+        ColoredText.new('green',
+                        'second@example.com casts Cause Light Wounds on first@example.com.'),
+        ColoredText.new('light-blue', 'first@example.com is covered in a shimmering shield.'),
+        ColoredText.new('red', 'Light wounds appear on first@example.com\'s body for 2 damage.')
       ]
 
       result_2 = SpellbinderRules.calc_next_turn(initial_battle_states_2)
