@@ -62,6 +62,7 @@ GEM
       zeitwerk (~> 2.3)
     addressable (2.7.0)
       public_suffix (>= 2.0.2, < 5.0)
+    attr_extras (6.2.4)
     bcrypt (3.1.16)
     bindex (0.8.1)
     bootsnap (1.7.5)
@@ -113,7 +114,10 @@ GEM
     nokogiri (1.11.5)
       mini_portile2 (~> 2.5.0)
       racc (~> 1.4)
+    optimist (3.0.1)
     orm_adapter (0.5.0)
+    patience_diff (1.2.0)
+      optimist (~> 3.0)
     pry (0.13.1)
       coderay (~> 1.1)
       method_source (~> 1.0)
@@ -206,6 +210,10 @@ GEM
       activesupport (>= 4.0)
       sprockets (>= 3.0.0)
     sqlite3 (1.4.2)
+    super_diff (0.8.0)
+      attr_extras (>= 6.2.4)
+      diff-lcs
+      patience_diff
     thor (1.1.0)
     tilt (2.0.10)
     turbolinks (5.2.1)
@@ -256,6 +264,7 @@ DEPENDENCIES
   selenium-webdriver
   spring
   sqlite3 (~> 1.4)
+  super_diff
   turbolinks (~> 5)
   tzinfo-data
   web-console (>= 4.1.0)

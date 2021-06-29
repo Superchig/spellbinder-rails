@@ -10,7 +10,8 @@ module SpellbinderRules
     attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :haste_orders, :other_view_left_hand, :other_view_right_hand,
                   :amnesia, :confused, :charming_target, :paralyzing_target, :scared, :last_turn_anti_spelled,
                   :remaining_protection_turns, :remaining_disease_turns, :remaining_blindness_turns, :remaining_invis_turns,
-                  :remaining_haste_turns, :remaining_time_stop_turns
+                  :remaining_haste_turns, :remaining_time_stop_turns, :remaining_delay_effect_turns, :banked_spell_order,
+                  :banked_spell_order
 
     alias amnesia? amnesia
     alias confused? confused
@@ -20,7 +21,8 @@ module SpellbinderRules
                    haste_orders: nil, other_view_left_hand: '', other_view_right_hand: '',
                    amnesia: false, confused: false, charming_target: '', paralyzing_target: '', scared: false,
                    last_turn_anti_spelled: -1, remaining_protection_turns: 0, remaining_disease_turns: -1, remaining_blindness_turns: 0,
-                   remaining_invis_turns: 0, remaining_haste_turns: 0, remaining_time_stop_turns: 0)
+                   remaining_invis_turns: 0, remaining_haste_turns: 0, remaining_time_stop_turns: 0, remaining_delay_effect_turns: 0,
+                   banked_spell_order: nil)
       @left_hand = left_hand
       @right_hand = right_hand
       @health = health
@@ -41,6 +43,8 @@ module SpellbinderRules
       @remaining_invis_turns = remaining_invis_turns
       @remaining_haste_turns = remaining_haste_turns
       @remaining_time_stop_turns = remaining_time_stop_turns
+      @remaining_delay_effect_turns = remaining_delay_effect_turns
+      @banked_spell_order = banked_spell_order
     end
 
     def ==(other)
@@ -60,7 +64,8 @@ module SpellbinderRules
                                    && remaining_blindness_turns == other.remaining_blindness_turns \
                                    && remaining_invis_turns == other.remaining_invis_turns \
                                    && remaining_haste_turns == other.remaining_haste_turns \
-                                   && remaining_time_stop_turns == other.remaining_time_stop_turns
+                                   && remaining_time_stop_turns == other.remaining_time_stop_turns \
+                                   && remaining_delay_effect_turns == other.remaining_delay_effect_turns
     end
   end
 
@@ -107,9 +112,10 @@ module SpellbinderRules
 
   class PlayerOrders
     attr_accessor :left_gesture, :left_spell, :left_target, :right_gesture, :right_spell, :right_target,
-                  :override_gesture, :paralyze_target_hand
+                  :override_gesture, :paralyze_target_hand, :delay_effect_hand, :should_fire_banked_spell
 
-    def initialize(left_gesture: '', left_spell: '', left_target: '', right_gesture: '', right_spell: '', right_target: '', override_gesture: nil, paralyze_target_hand: :neither)
+    def initialize(left_gesture: '', left_spell: '', left_target: '', right_gesture: '', right_spell: '', right_target: '', override_gesture: nil, paralyze_target_hand: :neither,
+                   delay_effect_hand: :neither, should_fire_banked_spell: false)
       @left_gesture = left_gesture
       @left_spell = left_spell
       @left_target = left_target
@@ -117,6 +123,8 @@ module SpellbinderRules
       @right_spell = right_spell
       @right_target = right_target
       @override_gesture = override_gesture
+      @delay_effect_hand = delay_effect_hand # Can be :neither, :left, :right, or :both
+      @should_fire_banked_spell = should_fire_banked_spell
     end
 
     def ==(other)
@@ -127,7 +135,9 @@ module SpellbinderRules
         right_spell == other.right_spell &&
         right_target == other.right_target &&
         override_gesture == other.override_gesture &&
-        paralyze_target_hand == other.paralyze_target_hand
+        paralyze_target_hand == other.paralyze_target_hand &&
+        delay_effect_hand == other.delay_effect_hand &&
+        should_fire_banked_spell == other.should_fire_banked_spell
     end
   end
 
@@ -156,7 +166,7 @@ module SpellbinderRules
     RECORDS = [
       DoubleHandSpellInfo.new('DSFFF', 'C', :disease, :default_other),
       DoubleHandSpellInfo.new('DWFF', 'D', :blindness, :default_other),
-      DoubleHandSpellInfo.new('DFWF', 'D', :blindness, :default_other), # Is Blindness just like spell above
+      DoubleHandSpellInfo.new('DFWF', 'D', :blindness, :default_other), # This is another way to cast the Blindness spell
       DoubleHandSpellInfo.new('PP', 'WS', :invisibility, :default_self),
       DoubleHandSpellInfo.new('PWPWW', 'C', :haste, :default_self)
     ]
@@ -176,6 +186,7 @@ module SpellbinderRules
                SingleHandSpellInfo.new('DPP', :amnesia, :default_other),
                SingleHandSpellInfo.new('SPFP', :anti_spell, :default_other),
                SingleHandSpellInfo.new('WWP', :protection, :default_self),
+               SingleHandSpellInfo.new('DWSSSP', :delay_effect, :default_self),
                SingleHandSpellInfo.new('P', :shield, :default_self),
                SingleHandSpellInfo.new('PSDF', :charm_person, :default_other),
                SingleHandSpellInfo.new('FFF', :paralysis, :default_other),
@@ -306,23 +317,27 @@ module SpellbinderRules
         end
 
         # -1 is the "no disease" value
-        next unless mid_state.player_state.remaining_disease_turns > -1
+        if mid_state.player_state.remaining_disease_turns > -1
+          mid_state.player_state.remaining_disease_turns -= 1
 
-        mid_state.player_state.remaining_disease_turns -= 1
+          case mid_state.player_state.remaining_disease_turns
+          when 5
+            log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} is a bit nauseous."))
+          when 4
+            log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} is looking pale.."))
+          when 3
+            log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} is having difficulty breathing.."))
+          when 2
+            log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} is sweating feverishly."))
+          when 1
+            log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} staggers weakly."))
+          when 0
+            log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} is on the verge of death."))
+          end
+        end
 
-        case mid_state.player_state.remaining_disease_turns
-        when 5
-          log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} is a bit nauseous."))
-        when 4
-          log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} is looking pale.."))
-        when 3
-          log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} is having difficulty breathing.."))
-        when 2
-          log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} is sweating feverishly."))
-        when 1
-          log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} staggers weakly."))
-        when 0
-          log.push(ColoredText.new('red', "#{mid_state.player_state.player_name} is on the verge of death."))
+        if mid_state.player_state.remaining_delay_effect_turns > 0
+          mid_state.player_state.remaining_delay_effect_turns -= 1
         end
       end
     end
@@ -465,6 +480,8 @@ module SpellbinderRules
         log.push(ColoredText.new('light-blue', "#{target.player_state.player_name} speeds up!"))
       when :time_stop
         target.player_state.remaining_time_stop_turns = 1
+      when :delay_effect
+        target.player_state.remaining_delay_effect_turns = 3
       end
     end
 
@@ -481,6 +498,10 @@ module SpellbinderRules
         mid_state.player_state.remaining_time_stop_turns -= 1
       elsif mid_state.player_state.remaining_time_stop_turns > 0
         log.push(ColoredText.new('light-blue', "#{mid_state.player_state.player_name} flickers out of time!"))
+      end
+
+      if mid_state.player_state.remaining_delay_effect_turns == 3
+        log.push(ColoredText.new('light-blue', "#{mid_state.player_state.player_name} begins glowing faintly."))
       end
     end
 
@@ -615,30 +636,53 @@ module SpellbinderRules
     nil
   end
 
-  def self.parse_spells_for_time_active(mid_state, log, next_states, spells_to_cast, is_turn_time_stopped)
-    if is_turn_time_stopped && !mid_state.time_stopped
-      return
+  def self.add_or_bank_spell(mid_state, log, spells_to_cast, spell_order, is_spell_delay_possible, delay_effect_hand)
+    if is_spell_delay_possible && delay_effect_hand == :right
+      mid_state.player_state.remaining_delay_effect_turns = 0
+      mid_state.player_state.banked_spell_order = spell_order
+      log.push(ColoredText.new('yellow', "#{mid_state.player_state.player_name} banks a spell for later."))
+    else
+      spells_to_cast.push(spell_order)
+      log_casting(log, spells_to_cast[-1], was_banked: false)
     end
+  end
+
+  def self.parse_spells_for_time_active(mid_state, log, next_states, spells_to_cast, is_turn_time_stopped)
+    return if is_turn_time_stopped && !mid_state.time_stopped
+
+    is_spell_delay_possible = mid_state.player_state.remaining_delay_effect_turns > 0
+    delay_effect_hand = mid_state.player_state.orders.delay_effect_hand
 
     if both_hands_end_with?(mid_state.player_state, 'P')
-      spells_to_cast.push(SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states)))
-      log_casting(log, spells_to_cast[-1])
+      surrender_order = SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states))
+      add_or_bank_spell(mid_state, log, spells_to_cast, surrender_order, is_spell_delay_possible, delay_effect_hand)
     elsif (spell_order = parse_double_hand_spells(mid_state, next_states))
-      spells_to_cast.push(spell_order)
-      log_casting(log, spells_to_cast[-1])
+      add_or_bank_spell(mid_state, log, spells_to_cast, spell_order, is_spell_delay_possible, delay_effect_hand)
     else
       left_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: true)
       right_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: false)
 
       unless left_spell_order.nil?
-        spells_to_cast.push(left_spell_order)
-        log_casting(log, spells_to_cast[-1])
+        add_or_bank_spell(mid_state, log, spells_to_cast, left_spell_order, is_spell_delay_possible, delay_effect_hand)
       end
 
       unless right_spell_order.nil?
-        spells_to_cast.push(right_spell_order)
-        log_casting(log, spells_to_cast[-1])
+        add_or_bank_spell(mid_state, log, spells_to_cast, right_spell_order, is_spell_delay_possible,
+                          delay_effect_hand)
       end
+    end
+
+    # TODO(Chris): We may have to rework how banked_spell_order is stored, since it's inherently linked
+    # to a specific MidPlayerState for its caster and targets, and we probably don't want to expose MidPlayerState.
+    if mid_state.player_state.orders.should_fire_banked_spell
+      banked_spell_order = mid_state.player_state.banked_spell_order
+
+      matching_spell_order = SpellOrder.new(banked_spell_order.spell,
+                                            find_state_by_name(next_states, banked_spell_order.caster.player_state.player_name),
+                                            find_state_by_name(next_states, banked_spell_order.target.player_state.player_name))
+      spells_to_cast.push(matching_spell_order)
+      mid_state.player_state.banked_spell_order = nil
+      log_casting(log, spells_to_cast[-1], was_banked: true)
     end
   end
 
@@ -671,21 +715,28 @@ module SpellbinderRules
     end
   end
 
-  def self.log_casting(log, spell_order)
+  def self.log_casting(log, spell_order, was_banked:)
     mid_state = spell_order.caster
     target = spell_order.target
 
-    cast_output = case spell_order.spell
-                  when :surrender
-                  # Nothing happens here
-                  when :stab
+    cast_output = if was_banked
                     ColoredText.new('green',
-                                    "#{mid_state.player_state.player_name} stabs at #{display_target(mid_state,
-                                                                                                     target)}")
+                                    "#{mid_state.player_state.player_name} casts their banked #{find_spell_name(spell_order.spell)} at #{display_target(
+                                      mid_state, target
+                                    )}")
                   else
-                    ColoredText.new('green',
-                                    "#{mid_state.player_state.player_name} casts #{find_spell_name(spell_order.spell)} on #{display_target(mid_state,
-                                                                                                                                           target)}")
+                    case spell_order.spell
+                    when :surrender
+                    # Nothing happens here
+                    when :stab
+                      ColoredText.new('green',
+                                      "#{mid_state.player_state.player_name} stabs at #{display_target(mid_state,
+                                                                                                       target)}")
+                    else
+                      ColoredText.new('green',
+                                      "#{mid_state.player_state.player_name} casts #{find_spell_name(spell_order.spell)} on #{display_target(mid_state,
+                                                                                                                                             target)}")
+                    end
                   end
 
     return if cast_output.nil?

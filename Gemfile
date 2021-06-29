@@ -38,6 +38,8 @@ group :development, :test do
 
   gem 'pry', '~> 0.13.1'
   gem 'pry-byebug', '~> 3.9'
+
+  # gem 'super_diff'
 end
 
 group :development do
