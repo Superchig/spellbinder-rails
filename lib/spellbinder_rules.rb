@@ -110,6 +110,16 @@ module SpellbinderRules
     end
   end
 
+  class BankedSpellOrder
+    attr_reader :spell, :caster_name, :target_name
+
+    def initialize(spell, caster_name, target_name)
+      @spell = spell
+      @caster_name = caster_name
+      @target_name = target_name
+    end
+  end
+
   class PlayerOrders
     attr_accessor :left_gesture, :left_spell, :left_target, :right_gesture, :right_spell, :right_target,
                   :override_gesture, :paralyze_target_hand, :delay_effect_hand, :should_fire_banked_spell
@@ -636,10 +646,13 @@ module SpellbinderRules
     nil
   end
 
-  def self.add_or_bank_spell(mid_state, log, spells_to_cast, spell_order, is_spell_delay_possible, delay_effect_hand)
+  def self.add_or_bank_spell(mid_state, log, next_states, spells_to_cast, spell_order, is_spell_delay_possible, delay_effect_hand)
     if is_spell_delay_possible && delay_effect_hand == :right
       mid_state.player_state.remaining_delay_effect_turns = 0
-      mid_state.player_state.banked_spell_order = spell_order
+      banked_spell_order = BankedSpellOrder.new(spell_order.spell,
+        spell_order.caster.player_state.player_name,
+        spell_order.target.player_state.player_name)
+      mid_state.player_state.banked_spell_order = banked_spell_order
       log.push(ColoredText.new('yellow', "#{mid_state.player_state.player_name} banks a spell for later."))
     else
       spells_to_cast.push(spell_order)
@@ -655,31 +668,29 @@ module SpellbinderRules
 
     if both_hands_end_with?(mid_state.player_state, 'P')
       surrender_order = SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states))
-      add_or_bank_spell(mid_state, log, spells_to_cast, surrender_order, is_spell_delay_possible, delay_effect_hand)
+      add_or_bank_spell(mid_state, log, next_states, spells_to_cast, surrender_order, is_spell_delay_possible, delay_effect_hand)
     elsif (spell_order = parse_double_hand_spells(mid_state, next_states))
-      add_or_bank_spell(mid_state, log, spells_to_cast, spell_order, is_spell_delay_possible, delay_effect_hand)
+      add_or_bank_spell(mid_state, log, next_states, spells_to_cast, spell_order, is_spell_delay_possible, delay_effect_hand)
     else
       left_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: true)
       right_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: false)
 
       unless left_spell_order.nil?
-        add_or_bank_spell(mid_state, log, spells_to_cast, left_spell_order, is_spell_delay_possible, delay_effect_hand)
+        add_or_bank_spell(mid_state, log, next_states, spells_to_cast, left_spell_order, is_spell_delay_possible, delay_effect_hand)
       end
 
       unless right_spell_order.nil?
-        add_or_bank_spell(mid_state, log, spells_to_cast, right_spell_order, is_spell_delay_possible,
+        add_or_bank_spell(mid_state, log, next_states, spells_to_cast, right_spell_order, is_spell_delay_possible,
                           delay_effect_hand)
       end
     end
 
-    # TODO(Chris): We may have to rework how banked_spell_order is stored, since it's inherently linked
-    # to a specific MidPlayerState for its caster and targets, and we probably don't want to expose MidPlayerState.
     if mid_state.player_state.orders.should_fire_banked_spell
       banked_spell_order = mid_state.player_state.banked_spell_order
 
       matching_spell_order = SpellOrder.new(banked_spell_order.spell,
-                                            find_state_by_name(next_states, banked_spell_order.caster.player_state.player_name),
-                                            find_state_by_name(next_states, banked_spell_order.target.player_state.player_name))
+                                            find_state_by_name(next_states, banked_spell_order.caster_name),
+                                            find_state_by_name(next_states, banked_spell_order.target_name))
       spells_to_cast.push(matching_spell_order)
       mid_state.player_state.banked_spell_order = nil
       log_casting(log, spells_to_cast[-1], was_banked: true)

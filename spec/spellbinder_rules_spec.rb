@@ -1107,8 +1107,8 @@ describe SpellbinderRules do
       expected_battle_states_2 = [PlayerState.new(left_hand: 'DWSSSP-', right_hand: '----WFP', health: 15, player_name: 'first@example.com'),
                                   PlayerState.new(left_hand: '-------', right_hand: '-------', health: 15,
                                                   player_name: 'second@example.com')]
-      expected_battle_states_2[0].banked_spell_order = SpellOrder.new(:cause_light_wounds, MidPlayerState.new(expected_battle_states_2[0]),
-                                                                      MidPlayerState.new(expected_battle_states_2[1]))
+
+      expected_battle_states_2[0].banked_spell_order = BankedSpellOrder.new(:cause_light_wounds, 'first@example.com', 'second@example.com')
 
       SpellbinderRules.copy_init_views(initial_battle_states_2)
       SpellbinderRules.copy_init_views(expected_battle_states_2)
