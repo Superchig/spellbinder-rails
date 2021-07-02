@@ -6,23 +6,35 @@ module SpellbinderRules
   FEAR_GESTURE_CONVERSIONS = { 'C' => '-', 'D' => '-', 'F' => '-', 'S' => '-',
                                'W' => 'W', 'P' => 'P', '>' => '>', '-' => '-' }
 
+  PERMANENT_TURNS = 99
+
   class PlayerState
     attr_accessor :left_hand, :right_hand, :health, :player_name, :orders, :haste_orders, :other_view_left_hand, :other_view_right_hand,
                   :amnesia, :confused, :charming_target, :paralyzing_target, :scared, :last_turn_anti_spelled,
                   :remaining_protection_turns, :remaining_disease_turns, :remaining_blindness_turns, :remaining_invis_turns,
                   :remaining_haste_turns, :remaining_time_stop_turns, :remaining_delay_effect_turns, :banked_spell_order,
-                  :banked_spell_order
+                  :banked_spell_order, :remaining_permanency_turns, :amnesia_permanently, :confused_permanently,
+                  :charming_target_permanently, :paralyzing_target_permanently, :scared_permanently
 
     alias amnesia? amnesia
     alias confused? confused
     alias scared? scared
 
+    alias amnesia_permanently? amnesia_permanently
+    alias confused_permanently? confused_permanently
+    alias charming_target_permanently? charming_target_permanently
+    alias paralyzing_target_permanently? paralyzing_target_permanently
+    alias scared_permanently? scared_permanently
+
+    # TODO(Chris): Refactor Enchantment effects to use array of Enchantments (or
+    # something similar), to avoid the massive number of fields
     def initialize(left_hand: '', right_hand: '', health: 15, player_name: '', orders: PlayerOrders.new,
                    haste_orders: nil, other_view_left_hand: '', other_view_right_hand: '',
                    amnesia: false, confused: false, charming_target: '', paralyzing_target: '', scared: false,
                    last_turn_anti_spelled: -1, remaining_protection_turns: 0, remaining_disease_turns: -1, remaining_blindness_turns: 0,
                    remaining_invis_turns: 0, remaining_haste_turns: 0, remaining_time_stop_turns: 0, remaining_delay_effect_turns: 0,
-                   banked_spell_order: nil)
+                   banked_spell_order: nil, remaining_permanency_turns: 0, amnesia_permanently: false, confused_permanently: false,
+                   charming_target_permanently: false, paralyzing_target_permanently: false, scared_permanently: false)
       @left_hand = left_hand
       @right_hand = right_hand
       @health = health
@@ -45,6 +57,14 @@ module SpellbinderRules
       @remaining_time_stop_turns = remaining_time_stop_turns
       @remaining_delay_effect_turns = remaining_delay_effect_turns
       @banked_spell_order = banked_spell_order
+      @remaining_permanency_turns = remaining_permanency_turns
+      # Some Enchantment spells are made permanent via a corresponding _permanently
+      # field, but other Enchantment spells are made permanent by setting their (only) field to PERMANENT_TURNS
+      @amnesia_permanently = amnesia_permanently
+      @confused_permanently = confused_permanently
+      @charming_target_permanently = charming_target_permanently
+      @paralyzing_target_permanently = paralyzing_target_permanently
+      @scared_permanently = scared_permanently
     end
 
     def ==(other)
@@ -55,6 +75,7 @@ module SpellbinderRules
                                    && other_view_left_hand == other.other_view_left_hand \
                                    && other_view_right_hand == other.other_view_right_hand \
                                    && amnesia? == other.amnesia? \
+                                   && confused == other.confused \
                                    && charming_target == other.charming_target \
                                    && paralyzing_target == other.paralyzing_target \
                                    && scared? == other.scared? \
@@ -65,7 +86,9 @@ module SpellbinderRules
                                    && remaining_invis_turns == other.remaining_invis_turns \
                                    && remaining_haste_turns == other.remaining_haste_turns \
                                    && remaining_time_stop_turns == other.remaining_time_stop_turns \
-                                   && remaining_delay_effect_turns == other.remaining_delay_effect_turns
+                                   && remaining_delay_effect_turns == other.remaining_delay_effect_turns \
+                                   && remaining_permanency_turns == other.remaining_permanency_turns \
+                                   && scared_permanently == other.scared_permanently
     end
   end
 
@@ -122,10 +145,10 @@ module SpellbinderRules
 
   class PlayerOrders
     attr_accessor :left_gesture, :left_spell, :left_target, :right_gesture, :right_spell, :right_target,
-                  :override_gesture, :paralyze_target_hand, :delay_effect_hand, :should_fire_banked_spell
+                  :override_gesture, :paralyze_target_hand, :delay_effect_hand, :should_fire_banked_spell, :permanency_hand
 
     def initialize(left_gesture: '', left_spell: '', left_target: '', right_gesture: '', right_spell: '', right_target: '', override_gesture: nil, paralyze_target_hand: :neither,
-                   delay_effect_hand: :neither, should_fire_banked_spell: false)
+                   delay_effect_hand: :neither, should_fire_banked_spell: false, permanency_hand: :neither)
       @left_gesture = left_gesture
       @left_spell = left_spell
       @left_target = left_target
@@ -135,6 +158,7 @@ module SpellbinderRules
       @override_gesture = override_gesture
       @delay_effect_hand = delay_effect_hand # Can be :neither, :left, :right, or :both
       @should_fire_banked_spell = should_fire_banked_spell
+      @permanency_hand = permanency_hand # Can be :neither, :left, :right, or :both
     end
 
     def ==(other)
@@ -147,7 +171,8 @@ module SpellbinderRules
         override_gesture == other.override_gesture &&
         paralyze_target_hand == other.paralyze_target_hand &&
         delay_effect_hand == other.delay_effect_hand &&
-        should_fire_banked_spell == other.should_fire_banked_spell
+        should_fire_banked_spell == other.should_fire_banked_spell &&
+        permanency_hand == other.permanency_hand
     end
   end
 
@@ -194,6 +219,7 @@ module SpellbinderRules
     RECORDS = [SingleHandSpellInfo.new('>', :stab, :default_other),
                SingleHandSpellInfo.new('WFP', :cause_light_wounds, :default_other),
                SingleHandSpellInfo.new('DPP', :amnesia, :default_other),
+               SingleHandSpellInfo.new('SPFPSDW', :permanency, :default_self),
                SingleHandSpellInfo.new('SPFP', :anti_spell, :default_other),
                SingleHandSpellInfo.new('WWP', :protection, :default_self),
                SingleHandSpellInfo.new('DWSSSP', :delay_effect, :default_self),
@@ -244,7 +270,7 @@ module SpellbinderRules
           mid_state.player_state.orders.left_gesture = new_left_gesture
           mid_state.player_state.orders.right_gesture = new_right_gesture
 
-          mid_state.player_state.amnesia = false
+          mid_state.player_state.amnesia = false unless mid_state.player_state.amnesia_permanently
 
           log.push(ColoredText.new('yellow',
                                    "#{mid_state.player_state.player_name} forgets what he's doing, and makes the same gestures as last round!"))
@@ -256,12 +282,16 @@ module SpellbinderRules
             mid_state.player_state.left_hand[-1] = gesture
             mid_state.player_state.orders.left_gesture = gesture
 
+            mid_state.player_state.confused = false unless mid_state.player_state.confused_permanently
+
             log.push(ColoredText.new('yellow',
                                      "#{mid_state.player_state.player_name}, in their confusion, makes the wrong gesture with their left hand."))
           else
             gesture = random_gesture
             mid_state.player_state.right_hand[-1] = gesture
             mid_state.player_state.orders.right_gesture = gesture
+
+            mid_state.player_state.confused = false unless mid_state.player_state.confused_permanently
 
             log.push(ColoredText.new('yellow',
                                      "#{mid_state.player_state.player_name}, in their confusion, makes the wrong gesture with their right hand."))
@@ -281,7 +311,7 @@ module SpellbinderRules
             target.player_state.right_hand[-1] = override_gesture.gesture
           end
 
-          mid_state.player_state.charming_target = ''
+          mid_state.player_state.charming_target = '' unless mid_state.player_state.charming_target_permanently
 
           log.push(ColoredText.new('yellow',
                                    "#{override_gesture.target_name} is charmed into making the wrong gesture with his #{hand_name} hand."))
@@ -294,7 +324,7 @@ module SpellbinderRules
           target.player_state.left_hand[-1] = paralyze_gesture
           target.player_state.orders.left_gesture = paralyze_gesture
 
-          mid_state.player_state.paralyzing_target = ''
+          mid_state.player_state.paralyzing_target = '' unless mid_state.player_state.paralyzing_target_permanently
 
           log.push(ColoredText.new('yellow', "#{target.player_state.player_name}'s left hand is paralyzed."))
         when :right
@@ -303,7 +333,7 @@ module SpellbinderRules
           target.player_state.right_hand[-1] = paralyze_gesture
           target.player_state.orders.right_gesture = paralyze_gesture
 
-          mid_state.player_state.paralyzing_target = ''
+          mid_state.player_state.paralyzing_target = '' unless mid_state.player_state.paralyzing_target_permanently
 
           log.push(ColoredText.new('yellow', "#{target.player_state.player_name}'s right hand is paralyzed."))
         end
@@ -315,7 +345,7 @@ module SpellbinderRules
           mid_state.player_state.orders.right_gesture = FEAR_GESTURE_CONVERSIONS[mid_state.player_state.orders.right_gesture]
           mid_state.player_state.right_hand[-1] = mid_state.player_state.orders.right_gesture
 
-          mid_state.player_state.scared = false
+          mid_state.player_state.scared = false unless mid_state.player_state.scared_permanently?
 
           log.push(ColoredText.new('yellow',
                                    "#{mid_state.player_state.player_name}, out of fear, fails to make a C, D, F, or S."))
@@ -323,7 +353,7 @@ module SpellbinderRules
 
         if mid_state.player_state.remaining_protection_turns > 0
           mid_state.shielded = true
-          mid_state.player_state.remaining_protection_turns -= 1
+          mid_state.player_state.remaining_protection_turns -= 1 unless mid_state.player_state.remaining_protection_turns == PERMANENT_TURNS
         end
 
         # -1 is the "no disease" value
@@ -492,9 +522,13 @@ module SpellbinderRules
         target.player_state.remaining_time_stop_turns = 1
       when :delay_effect
         target.player_state.remaining_delay_effect_turns = 3
+      when :permanency
+        target.player_state.remaining_permanency_turns = 3
       end
     end
 
+    # TODO(Chris): Consider moving the 'begins glowing faintly' log lines to be right
+    # after their respective spell casts
     next_states.each do |mid_state|
       if mid_state.stopped_being_blind?
         log.push(ColoredText.new('dark-blue', "#{mid_state.player_state.player_name}'s eyes begin working again."))
@@ -510,7 +544,7 @@ module SpellbinderRules
         log.push(ColoredText.new('light-blue', "#{mid_state.player_state.player_name} flickers out of time!"))
       end
 
-      if mid_state.player_state.remaining_delay_effect_turns == 3
+      if mid_state.player_state.remaining_delay_effect_turns == 3 || mid_state.player_state.remaining_permanency_turns == 3
         log.push(ColoredText.new('light-blue', "#{mid_state.player_state.player_name} begins glowing faintly."))
       end
     end
@@ -646,8 +680,8 @@ module SpellbinderRules
     nil
   end
 
-  def self.add_or_bank_spell(mid_state, log, next_states, spells_to_cast, spell_order, is_spell_delay_possible, delay_effect_hand)
-    if is_spell_delay_possible && delay_effect_hand == :right
+  def self.add_or_bank_spell(mid_state, log, next_states, spells_to_cast, spell_order, is_spell_delay_possible, delay_effect_hand, requirement_hand)
+    if is_spell_delay_possible && delay_effect_hand == requirement_hand
       mid_state.player_state.remaining_delay_effect_turns = 0
       banked_spell_order = BankedSpellOrder.new(spell_order.spell,
         spell_order.caster.player_state.player_name,
@@ -657,6 +691,52 @@ module SpellbinderRules
     else
       spells_to_cast.push(spell_order)
       log_casting(log, spells_to_cast[-1], was_banked: false)
+
+      if mid_state.player_state.remaining_permanency_turns > 0 && mid_state.player_state.orders.permanency_hand == requirement_hand
+        mid_state.player_state.remaining_permanency_turns = 0 unless mid_state.player_state.remaining_permanency_turns == PERMANENT_TURNS
+
+        target = spell_order.target
+        caster = spell_order.caster
+        is_permanency_successful = true
+
+        case spell_order.spell
+        when :amnesia
+          target.player_state.amnesia_permanently = true
+        when :confused
+          target.player_state.confused_permanently = true
+        when :charm_person
+          caster.player_state.charming_target_permanently = true
+        when :paralysis
+          caster.player_state.paralyzing_target_permanently = true
+        when :fear
+          target.player_state.scared_permanently = true
+        when :protection
+          target.player_state.remaining_protection_turns = PARALYZE_GESTURE_CONVERSIONS
+        # when :disease
+          # Don't do anything for Disease.
+        when :blindness
+          target.player_state.remaining_blindness_turns = PARALYZE_GESTURE_CONVERSIONS
+        when :invisibility
+          target.player_state.remaining_invis_turns = PARALYZE_GESTURE_CONVERSIONS
+        when :haste
+          target.player_state.remaining_haste_turns = PARALYZE_GESTURE_CONVERSIONS
+        # when :time_stop
+          # Actually, don't do anything for Time Stop. In the RavenBlack Games
+          # implementation, Time Stop is not affected by permanency.
+        when :remaining_delay_effect_turns
+          target.player_state.remaining_delay_effect_turns = PARALYZE_GESTURE_CONVERSIONS
+        when :remaining_permanency_turns
+          target.player_state.remaining_permanency_turns = PARALYZE_GESTURE_CONVERSIONS
+        else
+          is_permanency_successful = false
+        end
+
+        if is_permanency_successful
+          log.push(ColoredText.new('green', "#{mid_state.player_state.player_name} makes #{find_spell_name(spell_order.spell)} permanent."))
+        else
+          log.push(ColoredText.new('green', "#{mid_state.player_state.player_name} attempts to make #{find_spell_name(spell_order.spell)} permanent, but that spell can\'t be made permanent!"))
+        end
+      end
     end
   end
 
@@ -668,24 +748,29 @@ module SpellbinderRules
 
     if both_hands_end_with?(mid_state.player_state, 'P')
       surrender_order = SpellOrder.new(:surrender, mid_state, find_other_warlock(mid_state, next_states))
-      add_or_bank_spell(mid_state, log, next_states, spells_to_cast, surrender_order, is_spell_delay_possible, delay_effect_hand)
+      spells_to_cast.push(surrender_order)
+      log_casting(log, spells_to_cast[-1], was_banked: false)
     elsif (spell_order = parse_double_hand_spells(mid_state, next_states))
-      add_or_bank_spell(mid_state, log, next_states, spells_to_cast, spell_order, is_spell_delay_possible, delay_effect_hand)
+      add_or_bank_spell(mid_state, log, next_states, spells_to_cast, spell_order, is_spell_delay_possible, delay_effect_hand, :both)
     else
       left_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: true)
       right_spell_order = parse_unihand_gesture(mid_state, next_states, use_left: false)
 
       unless left_spell_order.nil?
-        add_or_bank_spell(mid_state, log, next_states, spells_to_cast, left_spell_order, is_spell_delay_possible, delay_effect_hand)
+        add_or_bank_spell(mid_state, log, next_states, spells_to_cast, left_spell_order, is_spell_delay_possible, delay_effect_hand, :left)
       end
 
       unless right_spell_order.nil?
         add_or_bank_spell(mid_state, log, next_states, spells_to_cast, right_spell_order, is_spell_delay_possible,
-                          delay_effect_hand)
+                          delay_effect_hand, :right)
       end
     end
 
     if mid_state.player_state.orders.should_fire_banked_spell
+      if mid_state.player_state.banked_spell_order.nil?
+        raise ArgumentError, "#{mid_state.player_state.player_name}'s wants to cast a banked spell order, but they have none banked."
+      end
+
       banked_spell_order = mid_state.player_state.banked_spell_order
 
       matching_spell_order = SpellOrder.new(banked_spell_order.spell,
@@ -706,14 +791,14 @@ module SpellbinderRules
         mid_state.player_state.other_view_left_hand << '?'
         mid_state.player_state.other_view_right_hand << '?'
 
-        mid_state.player_state.remaining_blindness_turns -= 1
+        mid_state.player_state.remaining_blindness_turns -= 1 unless mid_state.player_state.remaining_blindness_turns == PERMANENT_TURNS
 
         mid_state.stopped_being_blind = true if mid_state.player_state.remaining_blindness_turns <= 0
       elsif other_state.player_state.remaining_invis_turns > 0
         mid_state.player_state.other_view_left_hand << '?'
         mid_state.player_state.other_view_right_hand << '?'
 
-        other_state.player_state.remaining_invis_turns -= 1
+        other_state.player_state.remaining_invis_turns -= 1 unless mid_state.player_state.remaining_invis_turns == PERMANENT_TURNS
 
         other_state.stopped_being_invisible = true if other_state.player_state.remaining_invis_turns <= 0
       elsif is_turn_time_stopped && !mid_state.time_stopped?

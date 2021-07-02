@@ -509,6 +509,8 @@ describe SpellbinderRules do
       result_2 = SpellbinderRules.calc_next_turn(initial_battle_states_2)
 
       expect(result_2[:log]).to eq(expected_log_2)
+      expect(result_2[:next_states][0]).to eq(expected_battle_states_2[0])
+      expect(result_2[:next_states][1]).to eq(expected_battle_states_2[1])
       expect(result_2[:next_states]).to eq(expected_battle_states_2)
     end
   end
@@ -1139,6 +1141,84 @@ describe SpellbinderRules do
       expected_log_3 = [
         ColoredText.new('green', 'first@example.com casts their banked Cause Light Wounds at second@example.com.'),
         ColoredText.new('red', 'Light wounds appear on second@example.com\'s body for 2 damage.')
+      ]
+
+      result_3 = SpellbinderRules.calc_next_turn(initial_battle_states_3)
+
+      expect(result_3[:log]).to eq(expected_log_3)
+      expect(result_3[:next_states][0]).to eq(expected_battle_states_3[0])
+      expect(result_3[:next_states][1]).to eq(expected_battle_states_3[1])
+      expect(result_3[:next_states]).to eq(expected_battle_states_3)
+    end
+  end
+
+  describe 'Casting "Permanency"' do
+    it 'can make any single subsequent Enchantment spell (except Anti Spell, Disease, Poison, or Time Stop) permanent' do
+      initial_battle_states = [PlayerState.new(left_hand: 'SPFPSD',
+                                               right_hand: '-----S', player_name: 'first@example.com',
+                                               orders: PlayerOrders.new(left_gesture: 'W', right_gesture: 'W')),
+                               PlayerState.new(left_hand: '------',
+                                               right_hand: '------', player_name: 'second@example.com',
+                                               orders: PlayerOrders.new(left_gesture: '-', right_gesture: '-'))]
+
+      expected_battle_states = [PlayerState.new(left_hand: 'SPFPSDW', right_hand: '-----SW', health: 15,
+                                                player_name: 'first@example.com', remaining_permanency_turns: 3),
+                                PlayerState.new(left_hand: '-------', right_hand: '-------', health: 15,
+                                                player_name: 'second@example.com')]
+
+      SpellbinderRules.copy_init_views(initial_battle_states)
+      SpellbinderRules.copy_init_views(expected_battle_states)
+
+      expected_log = [ColoredText.new('green', 'first@example.com casts Permanency on themself.'),
+                      ColoredText.new('light-blue', 'first@example.com begins glowing faintly.')]
+
+      result = SpellbinderRules.calc_next_turn(initial_battle_states)
+
+      expect(result[:log]).to eq(expected_log)
+      expect(result[:next_states][0]).to eq(expected_battle_states[0])
+      expect(result[:next_states][1]).to eq(expected_battle_states[1])
+      expect(result[:next_states]).to eq(expected_battle_states)
+
+      initial_battle_states_2 = expected_battle_states.dup
+      initial_battle_states_2[0].orders = PlayerOrders.new(left_gesture: '-', right_gesture: 'D',
+                                                           permanency_hand: :right)
+      initial_battle_states_2[1].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
+
+      expected_battle_states_2 = [PlayerState.new(left_hand: 'SPFPSDW-', right_hand: '-----SWD', health: 15,
+                                                  player_name: 'first@example.com', remaining_permanency_turns: 0),
+                                  PlayerState.new(left_hand: '--------', right_hand: '--------', health: 15,
+                                                  player_name: 'second@example.com', scared: true, scared_permanently: true,)]
+
+      SpellbinderRules.copy_init_views(initial_battle_states_2)
+      SpellbinderRules.copy_init_views(expected_battle_states_2)
+
+      expected_log_2 = [
+        ColoredText.new('green', 'first@example.com casts Fear on second@example.com.'),
+        ColoredText.new('green', 'first@example.com makes Fear permanent.'),
+        ColoredText.new('yellow', 'second@example.com looks scared.'),
+      ]
+
+      result_2 = SpellbinderRules.calc_next_turn(initial_battle_states_2)
+
+      expect(result_2[:log]).to eq(expected_log_2)
+      expect(result_2[:next_states][0]).to eq(expected_battle_states_2[0])
+      expect(result_2[:next_states][1]).to eq(expected_battle_states_2[1])
+      expect(result_2[:next_states]).to eq(expected_battle_states_2)
+
+      initial_battle_states_3 = expected_battle_states_2.dup
+      initial_battle_states_3[0].orders = PlayerOrders.new(left_gesture: '-', right_gesture: '-')
+      initial_battle_states_3[1].orders = PlayerOrders.new(left_gesture: 'D', right_gesture: 'F')
+
+      expected_battle_states_3 = [PlayerState.new(left_hand: 'SPFPSDW--', right_hand: '-----SWD-', health: 15,
+                                                  player_name: 'first@example.com'),
+                                  PlayerState.new(left_hand: '---------', right_hand: '---------', health: 15,
+                                                  player_name: 'second@example.com', scared: true, scared_permanently: true)]
+
+      SpellbinderRules.copy_init_views(initial_battle_states_3)
+      SpellbinderRules.copy_init_views(expected_battle_states_3)
+
+      expected_log_3 = [
+        ColoredText.new('yellow', 'second@example.com, out of fear, fails to make a C, D, F, or S.')
       ]
 
       result_3 = SpellbinderRules.calc_next_turn(initial_battle_states_3)
