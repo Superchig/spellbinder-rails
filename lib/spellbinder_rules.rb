@@ -272,6 +272,7 @@ module SpellbinderRules
 
           mid_state.player_state.amnesia = false unless mid_state.player_state.amnesia_permanently
 
+          # FIXME(Chris): Clean up this string output
           log.push(ColoredText.new('yellow',
                                    "#{mid_state.player_state.player_name} forgets what he's doing, and makes the same gestures as last round!"))
         end
@@ -711,22 +712,22 @@ module SpellbinderRules
         when :fear
           target.player_state.scared_permanently = true
         when :protection
-          target.player_state.remaining_protection_turns = PARALYZE_GESTURE_CONVERSIONS
+          target.player_state.remaining_protection_turns = PERMANENT_TURNS
         # when :disease
           # Don't do anything for Disease.
         when :blindness
-          target.player_state.remaining_blindness_turns = PARALYZE_GESTURE_CONVERSIONS
+          target.player_state.remaining_blindness_turns = PERMANENT_TURNS
         when :invisibility
-          target.player_state.remaining_invis_turns = PARALYZE_GESTURE_CONVERSIONS
+          target.player_state.remaining_invis_turns = PERMANENT_TURNS
         when :haste
-          target.player_state.remaining_haste_turns = PARALYZE_GESTURE_CONVERSIONS
+          target.player_state.remaining_haste_turns = PERMANENT_TURNS
         # when :time_stop
           # Actually, don't do anything for Time Stop. In the RavenBlack Games
           # implementation, Time Stop is not affected by permanency.
         when :remaining_delay_effect_turns
-          target.player_state.remaining_delay_effect_turns = PARALYZE_GESTURE_CONVERSIONS
+          target.player_state.remaining_delay_effect_turns = PERMANENT_TURNS
         when :remaining_permanency_turns
-          target.player_state.remaining_permanency_turns = PARALYZE_GESTURE_CONVERSIONS
+          target.player_state.remaining_permanency_turns = PERMANENT_TURNS
         else
           is_permanency_successful = false
         end
