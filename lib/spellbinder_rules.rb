@@ -272,9 +272,8 @@ module SpellbinderRules
 
           mid_state.player_state.amnesia = false unless mid_state.player_state.amnesia_permanently
 
-          # FIXME(Chris): Clean up this string output
           log.push(ColoredText.new('yellow',
-                                   "#{mid_state.player_state.player_name} forgets what he's doing, and makes the same gestures as last round!"))
+                                   "#{mid_state.player_state.player_name} forgets what they're doing, and makes the same gestures as last round!"))
         end
 
         if mid_state.player_state.confused?
@@ -437,7 +436,7 @@ module SpellbinderRules
 
         target.shielded = true
 
-        target.player_state.remaining_protection_turns = 2
+        target.player_state.remaining_protection_turns = 2 unless target.player_state.remaining_protection_turns == PERMANENT_TURNS
       end
     end
 
@@ -508,23 +507,23 @@ module SpellbinderRules
 
         log.push(ColoredText.new('red', "#{target.player_state.player_name} starts to look sick."))
       when :blindness
-        target.player_state.remaining_blindness_turns = 3
+        target.player_state.remaining_blindness_turns = 3 unless target.player_state.remaining_blindness_turns == PERMANENT_TURNS
 
         log.push(ColoredText.new('yellow', "#{target.player_state.player_name}'s sight begins to dim."))
       when :invisibility
-        target.player_state.remaining_invis_turns = 3
+        target.player_state.remaining_invis_turns = 3 unless target.player_state.remaining_invis_turns == PERMANENT_TURNS
 
         log.push(ColoredText.new('white', "There is a flash, and #{target.player_state.player_name} disappears!"))
       when :haste
-        target.player_state.remaining_haste_turns = 3
+        target.player_state.remaining_haste_turns = 3 unless target.player_state.remaining_haste_turns == PERMANENT_TURNS
 
         log.push(ColoredText.new('light-blue', "#{target.player_state.player_name} speeds up!"))
       when :time_stop
         target.player_state.remaining_time_stop_turns = 1
       when :delay_effect
-        target.player_state.remaining_delay_effect_turns = 3
+        target.player_state.remaining_delay_effect_turns = 3 unless target.player_state.remaining_delay_effect_turns == PERMANENT_TURNS
       when :permanency
-        target.player_state.remaining_permanency_turns = 3
+        target.player_state.remaining_permanency_turns = 3 unless target.player_state.remaining_permanency_turns == PERMANENT_TURNS
       end
     end
 
